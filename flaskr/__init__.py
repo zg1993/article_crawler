@@ -30,5 +30,9 @@ def create_app(test_config=None):
     @app.route('/hello')
     def hello():
         return 'Hello, World!'
+    print('create_app', app)
+    from . import db
+    db.init(app)
+    
 
     return app
