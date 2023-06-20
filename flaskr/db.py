@@ -7,6 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
+
 # def get_db():
 #     if 'db' not in g:
 #         print('current-app',current_app)
@@ -26,6 +27,10 @@ def init_db():
     # db = get_db()
     from flaskr.model import Book, Article
     db.create_all()
+
+    # book = Book(username='zg', userpassword='123')
+    # db.session.add(book)
+    # db.session.commit()
 
 
 @click.command('init-db')
