@@ -9,8 +9,27 @@ from flaskr.db import db
 from .model import Article,Book
 from sqlalchemy import func
 import json
+from . import tasks
+from celery.result import AsyncResult
 
 bp = Blueprint('article', __name__, url_prefix='/article')
+
+
+@bp.get("/result/<id>")
+def result(id: str) -> dict[str, object]:
+    result = AsyncResult(id)
+    ready = result.ready()
+    return {
+        "ready": ready,
+        "successful": result.successful() if ready else None,
+        "value": result.get() if ready else result.result,
+    }
+
+@bp.route('/list')
+def get_article_list():
+    res = tasks.block.delay()
+    current_app.logger.info(res)
+    return {'res': res.id}
 
 @bp.route('/add')
 def add_article():

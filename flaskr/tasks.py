@@ -1,20 +1,47 @@
 # -*- coding: utf-8 -*-
-from celery import Celery
+from celery import shared_task, Task
+import time
+from .model import Article, Book
+from .db import db
+
+import random
 
 
 
-app = Celery('tasks', broker='redis://127.0.0.1:6379/0', backend='redis://127.0.0.1:6379/0')
+@shared_task(ignore_result=False)
+def test():
+    print('test----')
+    return 'test'
 
-@app.task
-def hello():
-    print('---')
+@shared_task(ignore_result=False)
+def block():
+    time.sleep(5)
     return 'hello world'
 
-@app.task
-def add(x, y):
-    print('add')
-    return x + y
+@shared_task(bind=True, ignore_result=False)
+def process(self: Task, total: int) -> object:
+    for i in range(total):
+        self.update_state(state="PROGRESS", meta={"current": i + 1, "total": total})
+        time.sleep(1)
+    return {"current": total, "total": total}
 
 
-if __name__ == '__main__':
-    print('__main__')
+@shared_task
+def weixin():
+    pass
+
+@shared_task(ignore_result=False)
+def add(a: int, b: int) -> int:
+    username = random.choice(['a', 'b', 'c', 'd'])
+    userpassword = str(random.randint(1, 100))
+    book = Book(
+        username=username,
+        userpassword=userpassword
+    )
+    db.session.add(book)
+    db.session.commit()
+    return '{}: {}'.format(username, userpassword)
+
+
+
+
