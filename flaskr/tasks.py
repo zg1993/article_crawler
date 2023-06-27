@@ -5,11 +5,21 @@ from .model import Article, Book
 from .db import db
 
 import random
+import asyncio
+from datetime import datetime
 
+# from make_celery import celery_app
 
+@shared_task(name='my_task')
+def my_task():
+    print('my_task')
+    return 'my_task'
 
 @shared_task(ignore_result=False)
 def test():
+    from flask import current_app
+    celery_app = current_app.extensions['celery']
+    celery_app.add_periodic_task(10, my_task.s())
     print('test----')
     return 'test'
 
@@ -26,20 +36,30 @@ def process(self: Task, total: int) -> object:
     return {"current": total, "total": total}
 
 
-@shared_task
+@shared_task(name='weixin')
 def weixin():
-    pass
+    from crawler.article import main
+    print('wx-', db, '-wx')
+    return asyncio.run(main(db))
+
+@shared_task(bind=True)
+def manage_periodic_task(self):
+    print(self)
+    print(dir(self))
+    return '1'
+
 
 @shared_task(ignore_result=False)
 def add(a: int, b: int) -> int:
     username = random.choice(['a', 'b', 'c', 'd'])
     userpassword = str(random.randint(1, 100))
-    book = Book(
-        username=username,
-        userpassword=userpassword
-    )
-    db.session.add(book)
-    db.session.commit()
+    print('add: ', datetime.now())
+    # book = Book(
+    #     username=username,
+    #     userpassword=userpassword
+    # )
+    # db.session.add(book)
+    # db.session.commit()
     return '{}: {}'.format(username, userpassword)
 
 

@@ -45,6 +45,8 @@ def init(app):
     db.init_app(app)
     app.cli.add_command(init_db_command)
     
+
+    
     
 
 

@@ -50,23 +50,28 @@ def create_app(test_config=None) -> Flask:
     except OSError:
         pass
 
-    # init celery
+    # init celery redis 初始化配置
     app.config.from_mapping(
         CELERY=dict(
             broker_url="redis://localhost",
             result_backend="redis://localhost",
+            timezone='Asia/Shanghai', # 设置东八区
+            enable_utc=False, # 设置东八区
             broker_connection_retry_on_startup = True,
             beat_schedule={
                 # 'add':{
                 #     'task': 'flaskr.tasks.add',
-                #     # 'schedule': crontab(minute="*/1"),
-                    
-                #     'schedule': 5,
+                #     'schedule': crontab(minute=27, hour=15),
                 #     'args': (0, 100)
                 # },
+                #  'my_task':{
+                #     'task': 'my_task',
+                #     'schedule': 3,
+                # },
                 'weixin':{
-                    'task': 'flask.tasks.weixin',
-                    'schedule': crontab(minute="*/1"),
+                    'task': 'weixin',
+                    # 'schedule': crontab(minute="*/1"),
+                    'schedule': 60,
                 }
             }
         ) 
@@ -80,6 +85,7 @@ def create_app(test_config=None) -> Flask:
     # print('create_app', app)
     from . import db
     db.init(app)
+
     #导入注册路由
     from . import article_url
     app.register_blueprint(article_url.bp)

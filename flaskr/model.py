@@ -12,11 +12,12 @@ class Article(db.Model):
     aid = db.Column(db.String(20), primary_key=True, nullable=False)
     title = db.Column(db.String(200), nullable=False)
     link = db.Column(db.Text, nullable=False)
-    update_time = db.Column(db.TIMESTAMP(True),
-                            nullable=False,
-                            onupdate=db.text('CURRENT_TIMESTAMP'))
+    # update_time = db.Column(db.TIMESTAMP(True),
+    #                         nullable=False,
+    #                         onupdate=db.text('CURRENT_TIMESTAMP'))
+    update_time = db.Column(db.Integer, nullable=False)
     cover = db.Column(db.Text, nullable=False)
-    content = db.Column(db.Text, nullable=True)
+    content = db.Column(db.Text(65536), nullable=True)
 
     def __repr__(self):
         return 'Article {} {} {}'.format(self.aid, self.title,
@@ -27,3 +28,12 @@ class Article(db.Model):
 
     def __getitem__(self, item):
         return getattr(self, item)
+
+    def to_json(self):
+        return {
+            'aid': self.aid,
+            'title': self.title,
+            'link': self.link,
+            'update_time': self.update_time * 1000,
+            'cover': self.cover,
+        }

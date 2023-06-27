@@ -3,7 +3,7 @@
 from celery import Celery
 from celery.schedules import crontab
 
-app = Celery('proj', include=['proj.tasks'])
+app = Celery('proj', include=['proj.tasks']) # include worker启动时导入的任务模块
 app.config_from_object('proj.celeryconfig')
 
 # 定时任务
