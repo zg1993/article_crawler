@@ -3,6 +3,7 @@
 import pytz
 import os
 import logging
+from datetime import datetime, timedelta
 
 
 def logger_config(log_path,logging_name):
@@ -34,9 +35,13 @@ def logger_config(log_path,logging_name):
     return logger
  
 
-def timestamp_to_str(timestamp):
+def timestamp_to_str(timestamp, fmt='%Y-%m-%d %H:%M') -> str:
     tz = pytz.timezone('Asia/Shanghai')
-    return pytz.datetime.datetime.fromtimestamp(timestamp,tz).strftime('%Y-%m-%d %H:%M')
+    return pytz.datetime.datetime.fromtimestamp(timestamp,tz).strftime(fmt)
+
+
+def get_time_now(fmt='%Y-%m-%d', tz=pytz.timezone('Asia/Shanghai'), delta=0) -> str:
+    return (datetime.now(tz=tz) - timedelta(days=delta)).strftime(fmt)
     
 
 def write_file(path, content):

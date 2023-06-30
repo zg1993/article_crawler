@@ -3,6 +3,7 @@ from celery import shared_task, Task
 import time
 from .model import Article, Book
 from .db import db
+from flask import current_app
 
 import random
 import asyncio
@@ -18,8 +19,9 @@ def my_task():
 @shared_task(ignore_result=False)
 def test():
     from flask import current_app
-    celery_app = current_app.extensions['celery']
-    celery_app.add_periodic_task(10, my_task.s())
+    redis = current_app.extensions['redis']
+    print(redis.keys())
+    # celery_app.add_periodic_task(10, my_task.s())
     print('test----')
     return 'test'
 
@@ -39,8 +41,9 @@ def process(self: Task, total: int) -> object:
 @shared_task(name='weixin')
 def weixin():
     from crawler.article import main
+    redis_cli = current_app.extensions['redis']
     print('wx-', db, '-wx')
-    return asyncio.run(main(db))
+    return asyncio.run(main(db, redis_cli))
 
 @shared_task(bind=True)
 def manage_periodic_task(self):

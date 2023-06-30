@@ -5,62 +5,29 @@ import functools
 from flask import (Blueprint, flash, g, redirect, request, session, url_for,
                    current_app, jsonify)
 from flaskr.db import db
-from .model import Article, Book
+from .model import Article, Book, Task
 from sqlalchemy import func
 import json
 from . import tasks
 from celery.result import AsyncResult
 
 
-bp = Blueprint('article', __name__, url_prefix='/article')
-
-
-@bp.route("/result/<id>")
-def result(id: str) -> dict[str, object]:
-    result = AsyncResult(id)
-    ready = result.ready()
-    return {
-        "ready": ready,
-        "successful": result.successful() if ready else None,
-        "value": result.get() if ready else result.result,
-    }
-
-@bp.route("/test")
-def test():
-    res = tasks.test.delay()
-    return {'code': 200, 'res': res.id}
-
-@bp.route('/<string:aid>', methods=['GET'])
-def get_article_detail(aid):
-    app_log = current_app.logger
-    art = Article.query.get(aid)  # aid not exists None
-    data = {}
-    if art:
-        data = art.to_json()
-        data['content'] = art.content
-    return {'code': 200, 'data': data, 'success': True}
-
+bp = Blueprint('task', __name__, url_prefix='/task')
 
 @bp.route('/list', methods=['GET'])
-def get_article_list():
+def get_task_list():
     app_log = current_app.logger
     page = request.args.get('pageNo')
     per_page = request.args.get('pageSize')
-    title = request.args.get('title', '')
+    name = request.args.get('name', '')
+
+    a = Task.query.filter(Task.status==1).all()
+    print([i.to_json() for i in a])
 
     # current_app.logger.info(res)
-    art_query = Article.query.filter(
-        Article.title.like("%" + title + "%") if title is not None else "")
+    art_query = Task.query.filter(
+        Task.name.like("%" + name + "%") if name is not None else "")
     art_page_data = art_query.paginate(page=int(page), per_page=int(per_page))
-    # current_app.logger.info(art_page_data.items)
-    # current_app.logger.info(len(art_page_data.items))
-    # current_app.logger.info(dir(art_page_data))
-    # current_app.logger.info(art_page_data.has_next)
-    # current_app.logger.info(art_page_data.has_prev)
-    # current_app.logger.info(art_page_data.next())
-    # current_app.logger.info(art_page_data.page)
-    # current_app.logger.info(art_page_data.pages)
-    # current_app.logger.info(art_page_data.total)
     data = {
         'current': art_page_data.page,
         'pages': art_page_data.pages,
@@ -75,6 +42,16 @@ def get_article_list():
         'success': True,
         'data': data
     }
+
+# @bp.route('/<string:aid>', methods=['GET'])
+# def get_article_detail(aid):
+#     app_log = current_app.logger
+#     art = Article.query.get(aid)  # aid not exists None
+#     data = {}
+#     if art:
+#         data = art.to_json()
+#         data['content'] = art.content
+#     return {'code': 200, 'data': data, 'success': True}
 
 
 @bp.route('/add')
@@ -98,13 +75,6 @@ def add_article():
                          func.unix_timestamp(Article.update_time)).all()
     # r = db.session.query(Article.aid, func.from_unixtime((Article.update_time), "%Y-%m-%d %H:%i:%s")).all()
     res = []
-    # current_app.logger.info(func.from_unixtime(1687136155))
-    # current_app.logger.info(func.unix_timestamp)
-    # current_app.logger.info(type(r[0]))
-    # current_app.logger.info(dict(r[0]))
-    # current_app.logger.info(dir(r[0]))
-    # current_app.logger.info(r[0]._fields)
-    # current_app.logger.info(r[0].keys())
     import time, datetime
     for i in r:
         current_app.logger.info(i)

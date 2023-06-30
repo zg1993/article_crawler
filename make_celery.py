@@ -6,7 +6,7 @@ from flaskr import tasks
 
 flask_app = create_app()
 celery_app = flask_app.extensions['celery']
-flask_app.logger.info(celery_app)
+# flask_app.logger.info(celery_app)
 # flask_app.logger.info(dir(celery_app))
 # flask_app.logger.info(celery_app.timezone)
 # flask_app.logger.info(celery_app.uses_utc_timezone())

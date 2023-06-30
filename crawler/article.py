@@ -6,41 +6,45 @@ import re
 import asyncio
 import aiohttp
 import json
-from crawler.utils import timestamp_to_str, write_file
+from crawler.utils import timestamp_to_str, write_file, get_time_now
 from crawler.parse_html import parese_wexin_article
 # test
 from crawler.utils import logger_config
 from pprint import pprint
 # flaskr
-from flaskr.model import Article
+from flaskr.model import Article, Task
 from sqlalchemy import func
+from flask import current_app
 
+FAKEIDS_KEY = 'crawler:fakeids'
+COOKEIS_KEY = 'crawler:cookies'
 
-app_log = logger_config(log_path='/var/log/crawler/crawler_log.txt', logging_name='crawler')
+app_log = logger_config(log_path='/var/log/crawler/crawler_log.txt',
+                        logging_name='crawler')
 
 # 时间取updatetime
 
-g_search_key = ['比亚迪', '半月谈']
-# search_key = ['比亚迪']
+g_search_key = [ '半月谈', '国资小新', '秘书工作', '书院的天空', '综合能源服务圈', '华夏能源网', '能源新闻']
+# g_search_key = ['华夏能源网', '能源新闻']
 
+g_fakeid_dict = {}
 g_token = ''
-g_cookie_str = 'appmsglist_action_3928503461=card; noticeLoginFlag=1; remember_acct=604328914%40qq.com; pgv_pvid=2924024080; pac_uid=0_050e9ae06ea51; tvfe_boss_uuid=890b429a39ebc7ca; RK=Gelp6pi4Xf; ptcz=66aa14b01a2ea41e402cfba10b10b07334b9709205e4229b0df45cf26d1a7997; fqm_pvqid=8197a091-1292-41b4-8874-b5719a04e115; ptui_loginuin=604328914; ua_id=jW09Y9qMMJuUgdQ1AAAAANDk3XKvP74QfmGGFt4DCq0=; wxuin=86107293996414; mm_lang=zh_CN; noticeLoginFlag=1; cert=9bBIg6HXL0ZvmwL9lmZAsF7eQEceSzfd; _clck=3928503461|1|fcr|0; uuid=8abd1b0f3452eb0a438757ba1726a0c2; bizuin=3928503461; ticket=6f090ad342a5ffc1312c3fde61ffc2352f48c030; ticket_id=gh_9b10aff30334; slave_bizuin=3928503461; rand_info=CAESIMV9caHy/7MNPw3a0GgAbHrFd0kBbAygbc/Vrmyx4KiC; data_bizuin=3928503461; data_ticket=Y9NEs5Nn52v8qyoKMhbKS8h6ARMu7E2PF7jhYpgmfQh98xkoGemhCtQBpj3sjSvC; slave_sid=UlpxSHJYVmpfcG9GMDNjRkNzZDI0Rm1YcVhRMFo4eGU2YUZTNF9JVHF2cnYzRUw1UTVnaGptRjNJMU5XMFpPSGpXYmZRbmNRQlZObElrZTI1R2lIQWtpU2pKd0dHc2VVbDdlZGxSaGtpQkhEU00wZVpXOWJjQXZLZ0c3OWwxQ0pERzNPRzIwaHBKdHVxSDJR; slave_user=gh_9b10aff30334; xid=9c3b8cb6836f39a19c8a5b7c36899b77; openid2ticket_opTQo6rYA33kqeYqkKRaa0BAPji4=YFxS4/EMPWyWgWABCQnbRAe8BjHejO4hvkvjfMZjS0w=; _clsk=1togqf9|1687655324343|7|1|mp.weixin.qq.com/weheat-agent/payload/record'
+g_cookie_str = 'appmsglist_action_3928503461=card; noticeLoginFlag=1; remember_acct=604328914%40qq.com; pgv_pvid=2924024080; pac_uid=0_050e9ae06ea51; tvfe_boss_uuid=890b429a39ebc7ca; RK=Gelp6pi4Xf; ptcz=66aa14b01a2ea41e402cfba10b10b07334b9709205e4229b0df45cf26d1a7997; fqm_pvqid=8197a091-1292-41b4-8874-b5719a04e115; ptui_loginuin=604328914; ua_id=jW09Y9qMMJuUgdQ1AAAAANDk3XKvP74QfmGGFt4DCq0=; wxuin=86107293996414; mm_lang=zh_CN; noticeLoginFlag=1; cert=9bBIg6HXL0ZvmwL9lmZAsF7eQEceSzfd; rewardsn=; wxtokenkey=777; wwapp.vid=; wwapp.cst=; wwapp.deviceid=; bizuin=3928503461; ticket=b472cad5681fe1d47b9c264476a072c7eb3b1e49; ticket_id=gh_9b10aff30334; slave_bizuin=3928503461; uuid=ea4fd82ecd84c9111adb94aa5ed85032; rand_info=CAESIJ48gs/Q8FqeGMpVP6lyl+yPQNyU66SxufVJ/hDSn1rT; data_bizuin=3928503461; data_ticket=qRN6wTqIA6H3UO1Ie8S4c/WtyOa/wI47vsp0UemcT110RVbiApjMGddTaDmWwtDO; slave_sid=ejQ5VWQyX0ZlX3ZBOEhpX1luVEFZWnZ0T2hJNlNad0l4bmJGUWhYRDFBdXlLYlE0dHpCUUluVG41MzdJWG9sVlNjZmRIcTVlVTk2cUptRHhMcEJpWGdTanBqUTRfQ2toQ0ZySWZ6RkNwcWRPb19tNVJvMVVSc2N6d0YxaWJtV0JLeGc4VnBNdFd6U1pHRUhS; slave_user=gh_9b10aff30334; xid=4e5d42e11c5eb6639dfdb3afc481b1f3; openid2ticket_opTQo6rYA33kqeYqkKRaa0BAPji4=Wx6NM4BLLHVIbdCjILZzLTgpE2O+AhxP2zwjB0mCVzs=; _clck=3928503461|1|fcu|0; _clsk=131sz9a|1687940181775|3|1|mp.weixin.qq.com/weheat-agent/payload/record'
 # g_cookie_str = 'pgv_pvid=2924024080; pac_uid=0_050e9ae06ea51; tvfe_boss_uuid=890b429a39ebc7ca; RK=Gelp6pi4Xf; ptcz=66aa14b01a2ea41e402cfba10b10b07334b9709205e4229b0df45cf26d1a7997; fqm_pvqid=8197a091-1292-41b4-8874-b5719a04e115; ptui_loginuin=604328914; ua_id=jW09Y9qMMJuUgdQ1AAAAANDk3XKvP74QfmGGFt4DCq0=; wxuin=86107293996414; mm_lang=zh_CN; noticeLoginFlag=1; cert=9bBIg6HXL0ZvmwL9lmZAsF7eQEceSzfd; _clck=3928503461|1|fcr|0; uuid=8abd1b0f3452eb0a438757ba1726a0c2; bizuin=3928503461; ticket=6f090ad342a5ffc1312c3fde61ffc2352f48c030; ticket_id=gh_9b10aff30334; slave_bizuin=3928503461; rand_info=CAESIMV9caHy/7MNPw3a0GgAbHrFd0kBbAygbc/Vrmyx4KiC; data_bizuin=3928503461; data_ticket=Y9NEs5Nn52v8qyoKMhbKS8h6ARMu7E2PF7jhYpgmfQh98xkoGemhCtQBpj3sjSvC; slave_sid=UlpxSHJYVmpfcG9GMDNjRkNzZDI0Rm1YcVhRMFo4eGU2YUZTNF9JVHF2cnYzRUw1UTVnaGptRjNJMU5XMFpPSGpXYmZRbmNRQlZObElrZTI1R2lIQWtpU2pKd0dHc2VVbDdlZGxSaGtpQkhEU00wZVpXOWJjQXZLZ0c3OWwxQ0pERzNPRzIwaHBKdHVxSDJR; slave_user=gh_9b10aff30334; xid=9c3b8cb6836f39a19c8a5b7c36899b77; openid2ticket_opTQo6rYA33kqeYqkKRaa0BAPji4=YFxS4/EMPWyWgWABCQnbRAe8BjHejO4hvkvjfMZjS0w=; _clsk=1hq4e12|1687660203545|5|1|mp.weixin.qq.com/weheat-agent/payload/record'
-# g_cookie_str = 'appmsglist_action_3928503461=card; noticeLoginFlag=1; remember_acct=604328914%40qq.com; pgv_pvid=2924024080; pac_uid=0_050e9ae06ea51; tvfe_boss_uuid=890b429a39ebc7ca; RK=Gelp6pi4Xf; ptcz=66aa14b01a2ea41e402cfba10b10b07334b9709205e4229b0df45cf26d1a7997; fqm_pvqid=8197a091-1292-41b4-8874-b5719a04e115; ptui_loginuin=604328914; ua_id=jW09Y9qMMJuUgdQ1AAAAANDk3XKvP74QfmGGFt4DCq0=; wxuin=86107293996414; mm_lang=zh_CN; noticeLoginFlag=1; uuid=5413e1d3af9e84860779eee51e0da489; bizuin=3928503461; ticket=1052808daaa6b600220d3d72001169fb15606c3f; ticket_id=gh_9b10aff30334; slave_bizuin=3928503461; cert=9bBIg6HXL0ZvmwL9lmZAsF7eQEceSzfd; rand_info=CAESIPYj3AimBKobM97ESfhlxITikKChHzVihQ0OHhZet+1+; data_bizuin=3928503461; data_ticket=iZq97xJ8+bR0JQoUlAWqRNTbAejBkIsAZxXUqtF1baJp7UCFlu0o1qBLPL4MAwWA; slave_sid=TTVpc1B3ZXFRUEZWMkcyeUhoeDZUOG9MX2Z5MmR4T0c0MXNQWUtQWXV6OTZTYzNhc1lzTGtpU1c0QjNMYkpYR2VxazZqYWlRQkZKVENvMlB1WHdFS1lNdzN4SXBKb3pYVmxNSU1ZeTZSb2hDeHFjbXEwNUg5enc4SkloejNYbUN1VUpoOFplMExLbkx5b2th; slave_user=gh_9b10aff30334; xid=f716be5a9053d0f2ea04fc56e19de515; openid2ticket_opTQo6rYA33kqeYqkKRaa0BAPji4=wV3KuKg3i27VEmNHiN6wB64BB5ZeYnHXfigAlMdxZCs=; _clck=3928503461|1|fcm|0; _clsk=m3w3wk|1687253082169|3|1|mp.weixin.qq.com/weheat-agent/payload/record'
+
 g_cookies = {}
 g_headers = {
-    'accept':
-    '*/*',
-    'Referer':
-    'https://mp.weixin.qq.com/',
-    'sec-ch-ua-platform':
-    "Linux",
+    'accept': '*/*',
+    'Referer': 'https://mp.weixin.qq.com/',
+    'sec-ch-ua-platform': "Linux",
     'user-agent':
     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36',
     'Host': 'mp.weixin.qq.com'
 }
+g_redis = None
 
 g_count = 20
+
 
 def load_cookies():
     import urllib
@@ -52,12 +56,13 @@ def load_cookies():
         # if 'pgv_pvid' == key:
         #     g_cookies[key] = urllib.parse.unquote(val)
 
+
 async def get_token(session: aiohttp.ClientSession):
     global g_headers, g_cookies
     load_cookies()
     # print('cookies--:', g_cookies)
     url = 'https://mp.weixin.qq.com'
-    async with session.get(url=url,headers=g_headers) as resp:
+    async with session.get(url=url, headers=g_headers) as resp:
         print(str(resp.url))
         if 200 == resp.status:
             token = re.findall(r'.*?token=(\d+)', str(resp.url))
@@ -67,18 +72,28 @@ async def get_token(session: aiohttp.ClientSession):
             else:
                 app_log.warning('登录失败')
                 return
-def get_token1():
+
+
+def get_token1(redis_cli):
     import requests
-    global headers, cookies
+    global g_headers, cookies
     load_cookies()
     url = 'https://mp.weixin.qq.com'
-    res = requests.Session().get(url=url, headers=g_headers,cookies=g_cookies, verify=False)
-    app_log.info(res.url)
+    res = requests.Session().get(url=url,
+                                 headers=g_headers,
+                                 cookies=g_cookies,
+                                 verify=False)
     # app_log.info(res.url)
-    app_log.info(res.status_code)
+    # app_log.info(res.url)
+    # app_log.info(res.status_code)
+    if 'https://mp.weixin.qq.com/' == res.url:
+        cookies = redis_cli.get(COOKEIS_KEY)
+        res = requests.Session().get(url=url,
+                                     headers=g_headers,
+                                     cookies=cookies,
+                                     verify=False)
     return re.findall(r'.*?token=(\d+)', res.url)
     # app_log.info(res.links)
-
 
 
 def print_dict(d):
@@ -96,7 +111,7 @@ async def fetch(session, url, is_json=True, **kwargs):
         return data
 
 
-async def fetch_multi_fakeid(session, search_arr, headers, cookies,token):
+async def fetch_multi_fakeid(session, search_arr, headers, cookies, token):
     url = 'https://mp.weixin.qq.com/cgi-bin/searchbiz'
     tasks = []
     for key in search_arr:
@@ -117,14 +132,15 @@ async def fetch_multi_fakeid(session, search_arr, headers, cookies,token):
     return results
 
 
-async def init_fakeid(session, headers, cookies,token):
-    global g_search_key
-    search_key = g_search_key
-    search_res = await fetch_multi_fakeid(session, search_key, headers,cookies, token)
-    print('init_fakeid: ',search_res)
-    fakeid_arr = []
+async def init_fakeid(session, headers, cookies, token, search_key_fakeid,
+                      redis_cli):
+    search_res = await fetch_multi_fakeid(session, search_key_fakeid, headers,
+                                          cookies, token)
+    # print('init_fakeid: ',search_res)
+    # fakeid_arr = []
+    store = {}
     for index, res in enumerate(search_res):
-        name = search_key[index]
+        name = search_key_fakeid[index]
         if not res.get('list'):
             print(res)
         arr = res['list']
@@ -132,18 +148,26 @@ async def init_fakeid(session, headers, cookies,token):
             selected = arr[0]
             print('关键字<{0}>搜索结果：{1}'.format(name, selected['nickname']))
             print('介绍 {}'.format(selected.get('signature')))
-            fakeid_arr.append(selected['fakeid'])
+            # fakeid_arr.append(selected['fakeid'])
+
+            store[name] = json.dumps({
+                'fakeid': selected['fakeid'],
+                'nickname': selected['nickname'],
+                'service_type': selected['service_type'],
+                'signature': selected['signature'],
+            })
         else:
             print('无法搜索到 {}, 请重新确认关键字'.format(name))
-    return fakeid_arr
+    redis_cli.hset(FAKEIDS_KEY, mapping=store)
+    # return fakeid_arr
 
 
-async def fetch_multi_articles(session,
-                               fakeid_arr,
-                               headers,
-                               cookies,
-                               token,
-                               article_search_key='实力'):
+async def fetch_multi_articles_by_counts(session,
+                                         fakeid_arr,
+                                         headers,
+                                         cookies,
+                                         token,
+                                         article_search_key='实力'):
     global g_count
     count_article = 0
     begin = 0
@@ -176,45 +200,114 @@ async def fetch_multi_articles(session,
         results.extend(res)
         count_article = count_article + count
     print('article sum: ', count_article)
-    # print(results)
     print('resutls-len', len(results))
     return results
 
 
-def handle_articles_arr(arrs):
-    result = []
-    for arr in arrs:
-        articles = arr.get('app_msg_list', [])
-        print('articles len', len(articles))
-        for article in articles:
+async def fetch_articles_minunit(session, fakeid, headers, cookies, token,
+                                 search_key, now_str):
+    # count_article = 0
+    begin = 0
+    results = []
+    last_time = '9'
+    url = 'https://mp.weixin.qq.com/cgi-bin/appmsg'
+    while last_time >= now_str:
+        params = {
+            'action': 'list_ex',
+            'begin': begin,
+            'count': '5',
+            'fakeid': fakeid,
+            'type': '9',
+            'query': search_key,
+            'token': token,
+            'lang': 'zh_CN',
+            'f': 'json',
+            'ajax': '1',
+        }
+        res = await fetch(session, url, headers=headers, params=params)
+        # 如果所有公众号返回都是[]则停止检索
+        app_msg_list = res.get('app_msg_list', [])
+        print('len app_msg_list', len(app_msg_list))
+        begin = begin + 5
+        if 0 == len(app_msg_list):
+            print(res)
+            break
+        last_record = app_msg_list[0]
+        last_time = timestamp_to_str(last_record['update_time'], fmt='%Y-%m-%d')
+        # count_article = count_article + len(app_msg_list)
+        for article in app_msg_list:
             update_time = article['update_time']
-            title = article['title']
-            link = article['link']
-            cover = article['cover']
-            aid = article['aid']
-            # display_time = timestamp_to_str(update_time)
+            # print(timestamp_to_str(update_time, fmt='%Y-%m-%d'))
+            # print(now_str)
+            # print(timestamp_to_str(update_time, fmt='%Y-%m-%d') >= now_str)
+            if timestamp_to_str(update_time, fmt='%Y-%m-%d') >= now_str:
+                results.append(article)    
+    
+    app_log.info('{0} {1}-{2}: {3}'.format(now_str, fakeid, search_key,
+                                           len(results)))
+    return results
+
+
+async def fetch_multi_articles(session,
+                               fakeid_arr,
+                               headers,
+                               cookies,
+                               token,
+                               article_search_key=['碳', '节能'],
+                               delta=0):
+    now_str = get_time_now(delta=delta)
+    tasks = []
+    results = []
+    if not len(article_search_key):
+        article_search_key = ['']
+    for fakeid in fakeid_arr:
+        for search_key in article_search_key:
+            tasks.append(
+                asyncio.create_task(
+                    fetch_articles_minunit(session, fakeid, headers, cookies,
+                                           token, search_key, now_str)))
+    res = await asyncio.gather(*tasks)
+    for i in res:
+        results.extend(i)
+    return results
+
+
+def handle_articles_arr(articles):
+    result = []
+    duplicates = set()
+    for article in articles:
+        update_time = article['update_time']
+        title = article['title']
+        link = article['link']
+        cover = article['cover']
+        aid = article['aid']
+        if aid not in duplicates:
+            duplicates.add(aid)
+        # display_time = timestamp_to_str(update_time)
             result.append({
                 'aid': aid,
                 'title': title,
                 'link': link,
                 'update_time': update_time,
                 'cover': cover,
+                # 'topic': topic,
                 # 'display_time': display_time,
             })
-            
-    print('res sum: ', len(result))
     return result
+
 
 async def fetch_content(arr, session, **kwargs):
     tasks_link = []
     for article in arr:
         link = article['link']
-        tasks_link.append(asyncio.create_task(parse_wexin_article(session, link, **kwargs)))
+        tasks_link.append(
+            asyncio.create_task(parse_wexin_article(session, link, **kwargs)))
     res = await asyncio.gather(*tasks_link)
     for index, content in enumerate(res):
         arr[index]['content'] = content
-        print(arr[index]['title'], len(content), type(content))
+        # print(arr[index]['title'], len(content), type(content))
     return arr
+
 
 async def parse_wexin_article(session, url, **kwargs):
     html_text = await fetch(session, url, is_json=False, **kwargs)
@@ -224,10 +317,34 @@ async def parse_wexin_article(session, url, **kwargs):
     # write_file(path, html_text)
 
 
-async def main(db=None):
+def get_search_key_fakeid(redis_cli, arr):
+    fakeid_dict = redis_cli.hgetall(FAKEIDS_KEY)
+    res = []
+    for name in arr:
+        if name not in fakeid_dict:
+            res.append(name)
+    return res
+
+
+def get_fakeid_arr(redis_cli, arr):
+    fakeid_dict = redis_cli.hgetall(FAKEIDS_KEY)
+    res = []
+    for name in arr:
+        detail = json.loads(fakeid_dict[name])
+        res.append(detail['fakeid'])
+    return res
+async def main(db=None, redis_cli=None):
+    res = Task.query.filter(Task.status==1).all()
+    task_arr = [i.to_json() for i in res]
+    for task in res:
+        await task_unit(task.to_json(), db, redis_cli)
+    
+    
+
+async def task_unit(task, db=None, redis_cli=None):
     # test
     insert_data = []
-    # for i in 
+    # for i in
     # if db:
     #     for item in insert_data:
     #         item['content'] = "<h1>wode</h1>"
@@ -242,26 +359,44 @@ async def main(db=None):
     #     finally:
     #         print('commit end ----')
 
+    global g_token, g_headers, g_cookies, g_search_key
+    official_accounts_list = task.get('official_accounts', g_search_key)
+    search_keys = task.get('search_keys', [])
+    delta = task.get('delta', 0)
+    # topic = task.get('id', 1)
+
     print('start main----------')
     insert_data = []
-    global g_token, g_headers, g_cookies
+    
+    # search_name_key = g_search_key
     load_cookies()
+    search_key_fakeid = get_search_key_fakeid(redis_cli, official_accounts_list)
     async with aiohttp.ClientSession() as session:
-        g_token = get_token1()
+        g_token = get_token1(redis_cli)
         # g_token = await get_token(session)
         # app_log.info(g_token)
-        # if not g_token:
-        #     # pass
-        #     return
+        if not g_token:
+            app_log.info('cookies expired')
+            return
         g_headers['cookie'] = g_cookie_str
-        fakeid_arr = ['MzkzNjIwODU5OA==', 'MjM5OTU4Nzc0Mg==']
-        # fakeid_arr = await init_fakeid(session, g_headers, g_cookies, g_token)
+        if len(search_key_fakeid):
+            await init_fakeid(session, g_headers, g_cookies, g_token,
+                              search_key_fakeid, redis_cli)
+        fakeid_arr = get_fakeid_arr(redis_cli, official_accounts_list)
         print('fakeid_arr: ', fakeid_arr)
-        articles_arr = await fetch_multi_articles(session, fakeid_arr, g_headers,g_cookies, g_token)
-        result =  handle_articles_arr(articles_arr)
+        articles_arr = await fetch_multi_articles(session,
+                                                  fakeid_arr,
+                                                  g_headers,
+                                                  g_cookies,
+                                                  g_token,
+                                                  article_search_key=search_keys,
+                                                  delta=delta)
+        print('article sum: ', len(articles_arr))
+        result = handle_articles_arr(articles_arr)
+        print('remove duplicates article sum: ', len(result))
         arr = await fetch_content(result, session)
         # pprint([(i['title'], i['aid'], i['link']) for i in arr])
-        print('arr', len(arr))
+        # pprint([(i['title']) for i in arr])
         insert_data = arr
         # print('arr', arr)
     if db:
@@ -272,13 +407,21 @@ async def main(db=None):
         try:
             db.session.commit()
         except Exception as e:
-            print('error: ', e,)
+            print(
+                'error: ',
+                e,
+            )
         finally:
             print('commit end ----')
 
-        
 
 if __name__ == '__main__':
-    asyncio.run(main(db=None))
+    # from flaskr import create_app
+    # flask_app = create_app(True)
+    # with flask_app.app_context():
+    #     print(current_app.config['REDIS_HOST'])
+    import redis
+    redis_cli = redis.Redis(decode_responses=True)
+    asyncio.run(main(db=None, redis_cli=redis_cli))
     # load_cookies()
     # get_token1()
