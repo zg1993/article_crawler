@@ -2,10 +2,28 @@
 
 import click
 from flask import current_app, g
+from flask_sqlalchemy import SQLAlchemy as BaseSQLAlchemy
+from contextlib import contextmanager
 
-from flask_sqlalchemy import SQLAlchemy
+
+
+class SQLAlchemy(BaseSQLAlchemy):
+
+    @contextmanager
+    def auto_commit_db(self, close=True):
+        try:
+            yield
+            self.session.commit()
+        except Exception as e:
+            self.session.rollback()
+            raise e
+        finally:
+            if close:
+                self.session.remove()
+        
 
 db = SQLAlchemy()
+
 
 
 # def get_db():

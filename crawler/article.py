@@ -3,6 +3,7 @@
 import sys
 import os
 import re
+import time
 import asyncio
 import aiohttp
 import json
@@ -24,8 +25,8 @@ app_log = logger_config(log_path='/var/log/crawler/crawler_log.txt',
 
 # 时间取updatetime
 
-g_search_key = [ '半月谈', '国资小新', '秘书工作', '书院的天空', '综合能源服务圈', '华夏能源网', '能源新闻']
-# g_search_key = ['华夏能源网', '能源新闻']
+# g_search_key = [ '半月谈', '国资小新', '秘书工作', '书院的天空', '综合能源服务圈', '华夏能源网', '能源新闻']
+g_search_key = ['抚州发布']
 
 g_fakeid_dict = {}
 g_token = ''
@@ -227,7 +228,7 @@ async def fetch_articles_minunit(session, fakeid, headers, cookies, token,
         res = await fetch(session, url, headers=headers, params=params)
         # 如果所有公众号返回都是[]则停止检索
         app_msg_list = res.get('app_msg_list', [])
-        print('len app_msg_list', len(app_msg_list))
+        # print('len app_msg_list', len(app_msg_list))
         begin = begin + 5
         if 0 == len(app_msg_list):
             print(res)
@@ -359,12 +360,15 @@ async def task_unit(task, db=None, redis_cli=None):
     #     finally:
     #         print('commit end ----')
 
-    global g_token, g_headers, g_cookies, g_search_key
+    global g_token, g_headers, g_cookies, g_search_key, g_cookie_str
+    # 从redis里取 g_cookie_str
+    if redis_cli:
+        g_cookie_str = redis_cli.get(COOKEIS_KEY) or g_cookie_str
+
     official_accounts_list = task.get('official_accounts', g_search_key)
     search_keys = task.get('search_keys', [])
     delta = task.get('delta', 0)
     # topic = task.get('id', 1)
-
     print('start main----------')
     insert_data = []
     
@@ -383,7 +387,7 @@ async def task_unit(task, db=None, redis_cli=None):
             await init_fakeid(session, g_headers, g_cookies, g_token,
                               search_key_fakeid, redis_cli)
         fakeid_arr = get_fakeid_arr(redis_cli, official_accounts_list)
-        print('fakeid_arr: ', fakeid_arr)
+        print('fakeid_arr: {}'.format(fakeid_arr))
         articles_arr = await fetch_multi_articles(session,
                                                   fakeid_arr,
                                                   g_headers,
@@ -391,28 +395,54 @@ async def task_unit(task, db=None, redis_cli=None):
                                                   g_token,
                                                   article_search_key=search_keys,
                                                   delta=delta)
-        print('article sum: ', len(articles_arr))
+        print('article sum: {}'.format(len(articles_arr)))
         result = handle_articles_arr(articles_arr)
-        print('remove duplicates article sum: ', len(result))
+        print('remove duplicates article sum: {}'.format(len(result)))
         arr = await fetch_content(result, session)
         # pprint([(i['title'], i['aid'], i['link']) for i in arr])
         # pprint([(i['title']) for i in arr])
         insert_data = arr
         # print('arr', arr)
     if db:
-        for item in insert_data:
-            art = Article(**item)
-            db.session.add(art)
-        print('start commit ----')
         try:
-            db.session.commit()
+            start_time = time.time()
+            with db.auto_commit_db():
+                db.session.bulk_insert_mappings(
+                    Article,
+                    insert_data
+                )
+            print('insert {0} data, spend {1} seconds'.format(len(insert_data), time.time() - start_time))
         except Exception as e:
-            print(
-                'error: ',
-                e,
-            )
-        finally:
-            print('commit end ----')
+            print('insert error: {}'.format(e))
+            handle_duplicate_key(db, insert_data)
+            # print('typeof(e): {}'.format(type(e)))
+
+        # for item in insert_data:
+        #     art = Article(**item)
+        #     db.session.add(art)
+        # print('start commit ----')
+        # try:
+        #     db.session.commit()
+        # except Exception as e:
+        #     print(
+        #         'error: ',
+        #         e,
+        #     )
+        # finally:
+        #     print('commit end ----')
+def handle_duplicate_key(db, insert_data):
+    # print('--start-duplicate {}'.format(len(insert_data)))
+    for item in insert_data:
+        try:
+            with db.auto_commit_db():
+                print(item['title'])
+                db.session.add(Article(**item))
+        except Exception as e:
+            print('per insert error: {}'.format(e))
+            # print('error aid:{} title: {}'.format(item['aid'], item['title']))
+    
+    
+        
 
 
 if __name__ == '__main__':

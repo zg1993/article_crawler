@@ -1,6 +1,6 @@
     use crawler;
     
-    DROP TABLE IF EXISTS article;
+    -- DROP TABLE IF EXISTS article;
 
     CREATE TABLE IF NOT EXISTS article(
       aid VARCHAR(20) NOT NULL PRIMARY KEY,
@@ -25,13 +25,19 @@
       name VARCHAR(50) NOT NULL,
       official_accounts json NOT NULL,
       search_keys json NOT NULL,
-      delta INT DEFAULT NOT NULL 0,
+      delta INT NOT NULL DEFAULT 0,
       period VARCHAR(20)  NOT NULL DEFAULT '23:50',
       status SMALLINT  NOT NULL DEFAULT 0,
       PRIMARY KEY (`id`)
     ) DEFAULT CHARSET=utf8mb4;
 
-    insert into task (name, official_accounts, search_keys) values ('能源专题', 
-    '[ "半月谈", "国资小新", "秘书工作", "书院的天空", "综合能源服务圈", "华夏能源网", "能源新闻"]',
-    '[]'
+    insert into task (name, official_accounts, search_keys, status) values ('能源专题', 
+    '[ "中碳联", "绿普惠订阅号", "零碳未来时代", "碳广角", "深圳发布", "绿色供应链电网之家", "中创碳投", "气候投融资", "和碳视角", "广州碳排放权交易中心有限公司", "能源杂谈", "碳个朋友", "Cteam气候行动", "碳达峰中和", "零碳宝BCTC", "碳阻迹", "国际能源小数据",  "碳索未来 TL CARBON", "碳中和洞见", "易碳家", "光伏能源圈"]',
+    '[]',
+    0
     );
+
+    --  insert into task (name, official_accounts, search_keys) values ('测试专题', 
+    -- '[ "抚州发布"]',
+    -- '[]'
+    -- );

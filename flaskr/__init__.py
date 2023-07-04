@@ -78,6 +78,11 @@ def create_app(test_config=None) -> Flask:
                 'schedule': crontab(minute=50, hour=23),
                 # 'schedule': crontab(minute="*/1"),
                 # 'schedule': 60,
+            },
+            'test': {
+                'task': 'weixin',
+                # 'schedule': crontab(minute="*/1")
+                'schedule': crontab(minute=59, hour=8)
             }
         }))
     celery_init_app(app)

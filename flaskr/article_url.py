@@ -14,6 +14,8 @@ from celery.result import AsyncResult
 
 bp = Blueprint('article', __name__, url_prefix='/article')
 
+COOKEIS_KEY = 'crawler:cookies'
+
 
 @bp.route("/result/<id>")
 def result(id: str) -> dict[str, object]:
@@ -25,10 +27,17 @@ def result(id: str) -> dict[str, object]:
         "value": result.get() if ready else result.result,
     }
 
-@bp.route("/test")
-def test():
-    res = tasks.test.delay()
-    return {'code': 200, 'res': res.id}
+@bp.route("/update_cookies", methods=['POST'])
+def update_cookies():
+    try:
+        redis_cli = current_app.extensions['redis']
+        res = redis_cli.set(COOKEIS_KEY, request.form['cookies'])
+        code = 200 if res is True else 500
+        return {'code': code, 'res': redis_cli.get(COOKEIS_KEY)}
+    except Exception as e:
+        return {'code': 500, 'res': e}
+    # res = tasks.test.delay()
+    # return {'code': 200, 'res': res.id}
 
 @bp.route('/<string:aid>', methods=['GET'])
 def get_article_detail(aid):
@@ -50,7 +59,7 @@ def get_article_list():
 
     # current_app.logger.info(res)
     art_query = Article.query.filter(
-        Article.title.like("%" + title + "%") if title is not None else "")
+        Article.title.like("%" + title + "%") if title is not None else "").order_by(Article.update_time.desc())
     art_page_data = art_query.paginate(page=int(page), per_page=int(per_page))
     # current_app.logger.info(art_page_data.items)
     # current_app.logger.info(len(art_page_data.items))
