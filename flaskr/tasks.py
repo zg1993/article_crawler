@@ -42,7 +42,7 @@ def process(self: Task, total: int) -> object:
 def weixin():
     from crawler.article import main
     redis_cli = current_app.extensions['redis']
-    print('wx-', db, '-wx')
+    print('start weixin task')
     return asyncio.run(main(db, redis_cli))
 
 @shared_task(bind=True)

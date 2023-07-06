@@ -2,6 +2,7 @@
 
 import os
 
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import Flask
 from celery import Celery, Task
 from celery.schedules import crontab
@@ -38,6 +39,9 @@ def create_app(test_config=None) -> Flask:
         app.config.from_pyfile('dev_config.py')
     else:
         app.config.from_pyfile('config.py')
+
+    print('secret key: {}'.format(app.config['SECRET_KEY']))
+    app.logger.info('secret key1: {}'.format(app.config['SECRET_KEY']))
     # app.config.from_mapping(
     #     SECRET_KEY='dev',
     #     DATABASE=os.path.join(app.instance_path, 'flaskr.sqlite'),
@@ -57,34 +61,9 @@ def create_app(test_config=None) -> Flask:
         pass
 
     # init celery redis 初始化配置
-    app.config.from_mapping(CELERY=dict(
-        broker_url="redis://localhost",
-        result_backend="redis://localhost",
-        timezone='Asia/Shanghai',  # 设置东八区
-        enable_utc=False,  # 设置东八区
-        broker_connection_retry_on_startup=True,
-        beat_schedule={
-            # 'add':{
-            #     'task': 'flaskr.tasks.add',
-            #     'schedule': crontab(minute=27, hour=15),
-            #     'args': (0, 100)
-            # },
-            #  'my_task':{
-            #     'task': 'my_task',
-            #     'schedule': 3,
-            # },
-            'weixin': {
-                'task': 'weixin',
-                'schedule': crontab(minute=50, hour=23),
-                # 'schedule': crontab(minute="*/1"),
-                # 'schedule': 60,
-            },
-            'test': {
-                'task': 'weixin',
-                # 'schedule': crontab(minute="*/1")
-                'schedule': crontab(minute=59, hour=8)
-            }
-        }))
+    # app.config.from_mapping(CELERY=dict(
+    # ))
+    app.logger.info(app.config.get('CELERY'))
     celery_init_app(app)
 
     # a simple page that says hello
@@ -104,8 +83,11 @@ def create_app(test_config=None) -> Flask:
     app.extensions['redis'] = redis.Redis(
         host=app.config.get('REDIS_HOST', 'localhost'),
         port=app.config.get('REDIS_PORT', 6379),
+        db=app.config.get('REDIS_DB', 0),
+        password=app.config.get('REDIS_PASSWD',''),
         decode_responses=True
         )
+    # app.wsgi_app = ProxyFix(app.wsgi_app)
     return app
 
 

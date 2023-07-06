@@ -19,6 +19,7 @@ def parese_wexin_article(html_text):
         img_url = img.get('data-src')
         if img_url:
             img['src'] = img_url
+            img['referrerPolicy'] = 'same-origin'
     # 判断content只有一个div标签
     if len(content.find_all('div')):
         print('parse {} error'.format(title))

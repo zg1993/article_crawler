@@ -14,6 +14,27 @@ from celery.result import AsyncResult
 
 bp = Blueprint('task', __name__, url_prefix='/task')
 
+@bp.route('/start_now')
+def start_now():
+    res =  tasks.weixin.delay()
+    return {'code': 200, 'res': res.id}
+
+@bp.route('/redis')
+def get_dbsize():
+    redis_cli = current_app.extensions['redis']
+    return {'code': 200, 'res': redis_cli.dbsize()}
+
+@bp.route('/update', methods=['POST'])
+def update_task():
+    data = request.get_json()
+    print(data)
+    # form = request.form
+    ID = data['id']
+    with db.auto_commit_db():
+        res = Task.query.filter(Task.id == ID).update(data)
+        print("res: {}".format(res))
+    return {'code': 200, 'res': 'success' if res else 'id not existed'}
+
 @bp.route('/list', methods=['GET'])
 def get_task_list():
     app_log = current_app.logger

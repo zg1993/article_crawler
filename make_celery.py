@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 
 from flaskr import create_app
-from flaskr import tasks
+# from flaskr import tasks
+import os
 
-
-flask_app = create_app()
+if 'dev' == os.environ.get('CELERY_CONFIG_MODULE'):
+    flask_app = create_app(True)
+else:
+    flask_app = create_app()
 celery_app = flask_app.extensions['celery']
 # flask_app.logger.info(celery_app)
 # flask_app.logger.info(dir(celery_app))
