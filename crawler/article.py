@@ -305,6 +305,8 @@ async def fetch_content(arr, session, **kwargs):
             asyncio.create_task(parse_wexin_article(session, link, **kwargs)))
     res = await asyncio.gather(*tasks_link)
     for index, content in enumerate(res):
+        if content is None:
+            print('content is None: {}'.format(arr[index].get('link', '--')))
         arr[index]['content'] = content
         # print(arr[index]['title'], len(content), type(content))
     return arr
@@ -312,6 +314,7 @@ async def fetch_content(arr, session, **kwargs):
 
 async def parse_wexin_article(session, url, **kwargs):
     html_text = await fetch(session, url, is_json=False, **kwargs)
+    # print('url: {}'.format(url))
     new_html = parese_wexin_article(html_text)
     return new_html
     # path = '/home/zg/Documents/gftPackage/{}.html'.format('1.html')
@@ -401,7 +404,8 @@ async def task_unit(task, db=None, redis_cli=None):
         arr = await fetch_content(result, session)
         # pprint([(i['title'], i['aid'], i['link']) for i in arr])
         # pprint([(i['title']) for i in arr])
-        insert_data = arr
+        # insert_data = arr
+        insert_data = filter(lambda i:i.get('content', None), arr) # drop content is None
         # print('arr', arr)
     if db:
         try:
