@@ -4,7 +4,7 @@ import os
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask import Flask
-from celery import Celery, Task
+from celery import Celery, Task, platforms
 from celery.schedules import crontab
 
 from logging.config import dictConfig
@@ -100,6 +100,7 @@ def celery_init_app(app: Flask) -> Celery:
                 return self.run(*args, **kwargs)
 
     # app.logger.info(app.name)
+    platforms.C_FORCE_ROOT = True
     celery_app = Celery(app.name, task_cls=FalskTask)
     # app.logger.info(app.config['CELERY'])
     celery_app.config_from_object(app.config['CELERY'])
