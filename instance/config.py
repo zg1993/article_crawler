@@ -8,8 +8,8 @@ SECRET_KEY = 'pro'
 # database config
 database_config = {
     'name': 'root',
-    'passwd': 'root',
-    'host': '127.0.0.1',
+    'passwd': 'sgit@123',
+    'host': '172.25.0.25',
     'port': 3306,
     'database': 'crawler',
 }
@@ -21,11 +21,11 @@ SQLALCHEMY_COMMIT_ON_TEARDOWN = True
 REDIS_HOST = "127.0.0.1"
 REDIS_PORT = 6379
 REDIS_DB = 10
-REDIS_PASSWD = quote('sjzy#1111')
+# REDIS_PASSWD = quote('sjzy#1111')
 
 CELERY = dict(
-    broker_url="redis://:{}@{}:{}/{}".format(REDIS_PASSWD,REDIS_HOST,REDIS_PORT,REDIS_DB),
-    result_backend="redis://:{}@{}:{}/{}".format(REDIS_PASSWD,REDIS_HOST,REDIS_PORT,REDIS_DB),
+    broker_url="redis://{}:{}/{}".format(REDIS_HOST,REDIS_PORT,REDIS_DB),
+    result_backend="redis://{}:{}/{}".format(REDIS_HOST,REDIS_PORT,REDIS_DB),
     timezone='Asia/Shanghai',  # 设置东八区
     enable_utc=False,  # 设置东八区
     broker_connection_retry_on_startup=True,
