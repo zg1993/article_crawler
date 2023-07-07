@@ -35,7 +35,7 @@ def create_app(test_config=None) -> Flask:
             }
         })  # setting logs
     app = Flask(__name__, instance_relative_config=True)
-    if app.config['DEBUG'] or test_config:
+    if app.config['DEBUG'] and not test_config:
         app.config.from_pyfile('dev_config.py')
     else:
         app.config.from_pyfile('config.py')
