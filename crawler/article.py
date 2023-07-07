@@ -456,7 +456,7 @@ async def task_unit(task, db=None, redis_cli=None):
 
 
 def handle_duplicate_key(db, insert_data):
-    print('--start-duplicate {}'.format(len(insert_data)))
+    print('--start-duplicate {}'.format(len(list(insert_data))))
     for item in insert_data:
         try:
             with db.auto_commit_db():
