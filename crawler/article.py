@@ -59,8 +59,8 @@ def load_cookies():
         g_cookies[key] = val
         # if 'pgv_pvid' == key:
         #     g_cookies[key] = urllib.parse.unquote(val)\\
-    print(g_cookies)
-    print(type(g_cookies))
+    # print(g_cookies)
+    # print(type(g_cookies))
 
 
 async def get_token(session: aiohttp.ClientSession):
@@ -437,8 +437,8 @@ async def task_unit(task, db=None, redis_cli=None):
         # pprint([(i['title'], i['aid'], i['link']) for i in arr])
         # pprint([(i['title']) for i in arr])
         # insert_data = arr
-        insert_data = filter(lambda i: i.get('content', None),
-                             arr)  # drop content is None
+        insert_data = list(filter(lambda i: i.get('content', None),
+                             arr))  # drop content is None
         # print('arr', arr)
     if db:
         with flask_app.app_context():
@@ -447,23 +447,26 @@ async def task_unit(task, db=None, redis_cli=None):
                 with db.auto_commit_db():
                     db.session.bulk_insert_mappings(Article, insert_data)
                 print('insert {0} data, spend {1} seconds'.format(
-                    len(list(insert_data)),
+                    len(insert_data),
                     time.time() - start_time))
             except Exception as e:
                 # print('insert error: {}'.format(e))
+                app_log.info(e)
                 handle_duplicate_key(db, insert_data)
             # print('typeof(e): {}'.format(type(e)))
 
 
 def handle_duplicate_key(db, insert_data):
-    print('--start-duplicate {}'.format(len(list(insert_data))))
+    print('--start-duplicate {}'.format(len(insert_data)))
     for item in insert_data:
         try:
             with db.auto_commit_db():
-                print(item['title'])
                 db.session.add(Article(**item))
+                print(item['title'])
         except Exception as e:
-            print('per insert error: {}'.format(e))
+            app_log.info(e)
+            print('insert error: {}'.format(item['title']))
+            # print('per insert error: {}'.format(e))
             # print('error aid:{} title: {}'.format(item['aid'], item['title']))
 
 
