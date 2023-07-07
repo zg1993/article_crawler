@@ -2,7 +2,7 @@
 
 from bs4 import BeautifulSoup
 import requests
-from tools.utils import write_file
+from .utils import write_file
 
 
 def parese_wexin_article(html_text):
