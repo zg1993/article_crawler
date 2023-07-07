@@ -239,7 +239,8 @@ async def fetch_articles_minunit(session, fakeid, headers, cookies, token,
             print(res)
             break
         last_record = app_msg_list[0]
-        last_time = timestamp_to_str(last_record['update_time'], fmt='%Y-%m-%d')
+        last_time = timestamp_to_str(last_record['update_time'],
+                                     fmt='%Y-%m-%d')
         # count_article = count_article + len(app_msg_list)
         for article in app_msg_list:
             update_time = article['update_time']
@@ -247,8 +248,8 @@ async def fetch_articles_minunit(session, fakeid, headers, cookies, token,
             # print(now_str)
             # print(timestamp_to_str(update_time, fmt='%Y-%m-%d') >= now_str)
             if timestamp_to_str(update_time, fmt='%Y-%m-%d') >= now_str:
-                results.append(article)    
-    
+                results.append(article)
+
     app_log.info('{0} {1}-{2}: {3}'.format(now_str, fakeid, search_key,
                                            len(results)))
     return results
@@ -278,6 +279,28 @@ async def fetch_multi_articles(session,
     return results
 
 
+async def fetch_multi_articles_unit(session,
+                                    fakeid_arr,
+                                    headers,
+                                    cookies,
+                                    token,
+                                    article_search_key=['碳', '节能'],
+                                    delta=0):
+    now_str = get_time_now(delta=delta)
+
+    results = []
+    if not len(article_search_key):
+        article_search_key = ['']
+    for fakeid in fakeid_arr:
+        for search_key in article_search_key:
+            res = await fetch_articles_minunit(session, fakeid, headers,
+                                               cookies, token, search_key,
+                                               now_str)
+            await asyncio.sleep(60)
+            results.extend(res)
+    return results
+
+
 def handle_articles_arr(articles):
     result = []
     duplicates = set()
@@ -289,7 +312,7 @@ def handle_articles_arr(articles):
         aid = article['aid']
         if aid not in duplicates:
             duplicates.add(aid)
-        # display_time = timestamp_to_str(update_time)
+            # display_time = timestamp_to_str(update_time)
             result.append({
                 'aid': aid,
                 'title': title,
@@ -343,14 +366,14 @@ def get_fakeid_arr(redis_cli, arr):
         res.append(detail['fakeid'])
     return res
 
+
 async def main(db=None, redis_cli=None):
     with flask_app.app_context():
-        res = Task.query.filter(Task.status==1).all()
+        res = Task.query.filter(Task.status == 1).all()
         task_arr = [i.to_json() for i in res]
     for task in task_arr:
         await task_unit(task, db, redis_cli)
-    
-    
+
 
 async def task_unit(task, db=None, redis_cli=None):
     # test
@@ -381,10 +404,11 @@ async def task_unit(task, db=None, redis_cli=None):
     # topic = task.get('id', 1)
     print('start main----------')
     insert_data = []
-    
+
     # search_name_key = g_search_key
     load_cookies()
-    search_key_fakeid = get_search_key_fakeid(redis_cli, official_accounts_list)
+    search_key_fakeid = get_search_key_fakeid(redis_cli,
+                                              official_accounts_list)
     async with aiohttp.ClientSession() as session:
         g_token = get_token1(redis_cli)
         # g_token = await get_token(session)
@@ -398,13 +422,14 @@ async def task_unit(task, db=None, redis_cli=None):
                               search_key_fakeid, redis_cli)
         fakeid_arr = get_fakeid_arr(redis_cli, official_accounts_list)
         print('fakeid_arr: {}'.format(fakeid_arr))
-        articles_arr = await fetch_multi_articles(session,
-                                                  fakeid_arr,
-                                                  g_headers,
-                                                  g_cookies,
-                                                  g_token,
-                                                  article_search_key=search_keys,
-                                                  delta=delta)
+        articles_arr = await fetch_multi_articles_unit(
+            session,
+            fakeid_arr,
+            g_headers,
+            g_cookies,
+            g_token,
+            article_search_key=search_keys,
+            delta=delta)
         print('article sum: {}'.format(len(articles_arr)))
         result = handle_articles_arr(articles_arr)
         print('remove duplicates article sum: {}'.format(len(result)))
@@ -412,25 +437,26 @@ async def task_unit(task, db=None, redis_cli=None):
         # pprint([(i['title'], i['aid'], i['link']) for i in arr])
         # pprint([(i['title']) for i in arr])
         # insert_data = arr
-        insert_data = filter(lambda i:i.get('content', None), arr) # drop content is None
+        insert_data = filter(lambda i: i.get('content', None),
+                             arr)  # drop content is None
         # print('arr', arr)
     if db:
         with flask_app.app_context():
             try:
                 start_time = time.time()
                 with db.auto_commit_db():
-                    db.session.bulk_insert_mappings(
-                        Article,
-                        insert_data
-                    )
-                print('insert {0} data, spend {1} seconds'.format(len(list(insert_data)), time.time() - start_time))
+                    db.session.bulk_insert_mappings(Article, insert_data)
+                print('insert {0} data, spend {1} seconds'.format(
+                    len(list(insert_data)),
+                    time.time() - start_time))
             except Exception as e:
-                print('insert error: {}'.format(e))
+                # print('insert error: {}'.format(e))
                 handle_duplicate_key(db, insert_data)
             # print('typeof(e): {}'.format(type(e)))
 
+
 def handle_duplicate_key(db, insert_data):
-    # print('--start-duplicate {}'.format(len(insert_data)))
+    print('--start-duplicate {}'.format(len(insert_data)))
     for item in insert_data:
         try:
             with db.auto_commit_db():
@@ -439,7 +465,8 @@ def handle_duplicate_key(db, insert_data):
         except Exception as e:
             print('per insert error: {}'.format(e))
             # print('error aid:{} title: {}'.format(item['aid'], item['title']))
-    
+
+
 def my_clock(db_cli, redis_cli):
     print(redis_cli.dbsize())
     print(db_cli)
@@ -449,9 +476,10 @@ def my_clock(db_cli, redis_cli):
     #     res = Task.query.filter(Task.status==1).all()
     #     task_arr = [i.to_json() for i in res]
     # print(task_arr)
-    
+
     asyncio.run(main(db_cli, redis_cli))
-    # print('end: {}'.format(datetime.now()))       
+    # print('end: {}'.format(datetime.now()))
+
 
 if __name__ == '__main__':
     from flaskr import create_app
@@ -462,8 +490,12 @@ if __name__ == '__main__':
         redis_cli = current_app.extensions['redis']
         db_cli = current_app.extensions['db']
     scheduler = BlockingScheduler(timezone='Asia/Shanghai')
-    scheduler.add_job(my_clock, 'cron', hour=23, minute=55, args=[db_cli,redis_cli])
+    scheduler.add_job(my_clock,
+                      'cron',
+                      hour=23,
+                      minute=55,
+                      args=[db_cli, redis_cli])
     if len(sys.argv) == 2:
-        my_clock(db_cli,redis_cli)
+        my_clock(db_cli, redis_cli)
     # scheduler.add_job(my_clock, 'interval', seconds=6, args=[db_cli, redis_cli])
     scheduler.start()

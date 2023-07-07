@@ -35,10 +35,12 @@ def create_app(test_config=None) -> Flask:
             }
         })  # setting logs
     app = Flask(__name__, instance_relative_config=True)
-    if app.config['DEBUG'] and not test_config:
-        app.config.from_pyfile('dev_config.py')
-    else:
+    if 'pro' == os.environ.get('FLASK_MODE'):
         app.config.from_pyfile('config.py')
+    else:
+        app.config.from_pyfile('dev_config.py')
+        
+        
 
     print('secret key: {}'.format(app.config['SECRET_KEY']))
     app.logger.info('secret key1: {}'.format(app.config['SECRET_KEY']))
