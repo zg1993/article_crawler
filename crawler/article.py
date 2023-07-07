@@ -7,15 +7,18 @@ import time
 import asyncio
 import aiohttp
 import json
+from datetime import datetime
 from crawler.utils import timestamp_to_str, write_file, get_time_now
 from crawler.parse_html import parese_wexin_article
 # test
 from crawler.utils import logger_config
 from pprint import pprint
 # flaskr
-from flaskr.model import Article, Task
+
 from sqlalchemy import func
+from apscheduler.schedulers.blocking import BlockingScheduler
 from flask import current_app
+from flaskr.model import Article, Task
 
 FAKEIDS_KEY = 'crawler:fakeids'
 COOKEIS_KEY = 'crawler:cookies'
@@ -55,7 +58,9 @@ def load_cookies():
         key, val = prog.match(item).groups()
         g_cookies[key] = val
         # if 'pgv_pvid' == key:
-        #     g_cookies[key] = urllib.parse.unquote(val)
+        #     g_cookies[key] = urllib.parse.unquote(val)\\
+    print(g_cookies)
+    print(type(g_cookies))
 
 
 async def get_token(session: aiohttp.ClientSession):
@@ -337,11 +342,13 @@ def get_fakeid_arr(redis_cli, arr):
         detail = json.loads(fakeid_dict[name])
         res.append(detail['fakeid'])
     return res
+
 async def main(db=None, redis_cli=None):
-    res = Task.query.filter(Task.status==1).all()
-    task_arr = [i.to_json() for i in res]
-    for task in res:
-        await task_unit(task.to_json(), db, redis_cli)
+    with flask_app.app_context():
+        res = Task.query.filter(Task.status==1).all()
+        task_arr = [i.to_json() for i in res]
+    for task in task_arr:
+        await task_unit(task, db, redis_cli)
     
     
 
@@ -408,32 +415,20 @@ async def task_unit(task, db=None, redis_cli=None):
         insert_data = filter(lambda i:i.get('content', None), arr) # drop content is None
         # print('arr', arr)
     if db:
-        try:
-            start_time = time.time()
-            with db.auto_commit_db():
-                db.session.bulk_insert_mappings(
-                    Article,
-                    insert_data
-                )
-            print('insert {0} data, spend {1} seconds'.format(len(insert_data), time.time() - start_time))
-        except Exception as e:
-            print('insert error: {}'.format(e))
-            handle_duplicate_key(db, insert_data)
+        with flask_app.app_context():
+            try:
+                start_time = time.time()
+                with db.auto_commit_db():
+                    db.session.bulk_insert_mappings(
+                        Article,
+                        insert_data
+                    )
+                print('insert {0} data, spend {1} seconds'.format(len(list(insert_data)), time.time() - start_time))
+            except Exception as e:
+                print('insert error: {}'.format(e))
+                handle_duplicate_key(db, insert_data)
             # print('typeof(e): {}'.format(type(e)))
 
-        # for item in insert_data:
-        #     art = Article(**item)
-        #     db.session.add(art)
-        # print('start commit ----')
-        # try:
-        #     db.session.commit()
-        # except Exception as e:
-        #     print(
-        #         'error: ',
-        #         e,
-        #     )
-        # finally:
-        #     print('commit end ----')
 def handle_duplicate_key(db, insert_data):
     # print('--start-duplicate {}'.format(len(insert_data)))
     for item in insert_data:
@@ -445,17 +440,30 @@ def handle_duplicate_key(db, insert_data):
             print('per insert error: {}'.format(e))
             # print('error aid:{} title: {}'.format(item['aid'], item['title']))
     
-    
-        
+def my_clock(db_cli, redis_cli):
+    print(redis_cli.dbsize())
+    print(db_cli)
+    print('start: {}'.format(datetime.now()))
 
+    # with flask_app.app_context():
+    #     res = Task.query.filter(Task.status==1).all()
+    #     task_arr = [i.to_json() for i in res]
+    # print(task_arr)
+    
+    asyncio.run(main(db_cli, redis_cli))
+    # print('end: {}'.format(datetime.now()))       
 
 if __name__ == '__main__':
-    # from flaskr import create_app
-    # flask_app = create_app(True)
-    # with flask_app.app_context():
-    #     print(current_app.config['REDIS_HOST'])
-    import redis
-    redis_cli = redis.Redis(decode_responses=True)
-    asyncio.run(main(db=None, redis_cli=redis_cli))
-    # load_cookies()
-    # get_token1()
+    from flaskr import create_app
+    flask_app = create_app(True)
+    redis_cli = None
+    db_cli = None
+    with flask_app.app_context():
+        redis_cli = current_app.extensions['redis']
+        db_cli = current_app.extensions['db']
+    scheduler = BlockingScheduler(timezone='Asia/Shanghai')
+    scheduler.add_job(my_clock, 'cron', hour=23, minute=55, args=[db_cli,redis_cli])
+    if len(sys.argv) == 2:
+        my_clock(db_cli,redis_cli)
+    # scheduler.add_job(my_clock, 'interval', seconds=6, args=[db_cli, redis_cli])
+    scheduler.start()

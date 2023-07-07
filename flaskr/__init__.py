@@ -79,6 +79,7 @@ def create_app(test_config=None) -> Flask:
     app.register_blueprint(article_url.bp)
     app.register_blueprint(task_url.bp)
 
+    app.extensions['db'] = db.db
     # store redis-cli
     app.extensions['redis'] = redis.Redis(
         host=app.config.get('REDIS_HOST', 'localhost'),
@@ -100,7 +101,7 @@ def celery_init_app(app: Flask) -> Celery:
                 return self.run(*args, **kwargs)
 
     # app.logger.info(app.name)
-    platforms.C_FORCE_ROOT = True
+    # platforms.C_FORCE_ROOT = True
     celery_app = Celery(app.name, task_cls=FalskTask)
     # app.logger.info(app.config['CELERY'])
     celery_app.config_from_object(app.config['CELERY'])
