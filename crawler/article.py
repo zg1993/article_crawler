@@ -59,8 +59,8 @@ def load_cookies():
         g_cookies[key] = val
         # if 'pgv_pvid' == key:
         #     g_cookies[key] = urllib.parse.unquote(val)\\
-    # print(g_cookies)
-    # print(type(g_cookies))
+    print(g_cookies)
+    print(type(g_cookies))
 
 
 async def get_token(session: aiohttp.ClientSession):
@@ -83,7 +83,7 @@ async def get_token(session: aiohttp.ClientSession):
 def get_token1(redis_cli):
     import requests
     global g_headers, cookies
-    load_cookies()
+    # load_cookies()
     url = 'https://mp.weixin.qq.com'
     res = requests.Session().get(url=url,
                                  headers=g_headers,
@@ -96,7 +96,7 @@ def get_token1(redis_cli):
         cookies = redis_cli.get(COOKEIS_KEY)
         res = requests.Session().get(url=url,
                                      headers=g_headers,
-                                     cookies=cookies,
+                                     cookies=g_cookies,
                                      verify=False)
     return re.findall(r'.*?token=(\d+)', res.url)
     # app_log.info(res.links)
@@ -244,9 +244,6 @@ async def fetch_articles_minunit(session, fakeid, headers, cookies, token,
         # count_article = count_article + len(app_msg_list)
         for article in app_msg_list:
             update_time = article['update_time']
-            # print(timestamp_to_str(update_time, fmt='%Y-%m-%d'))
-            # print(now_str)
-            # print(timestamp_to_str(update_time, fmt='%Y-%m-%d') >= now_str)
             if timestamp_to_str(update_time, fmt='%Y-%m-%d') >= now_str:
                 results.append(article)
 
