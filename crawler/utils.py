@@ -4,6 +4,7 @@ import pytz
 import os
 import logging
 from datetime import datetime, timedelta
+import time
 
 
 def logger_config(log_path,logging_name):
@@ -28,17 +29,33 @@ def logger_config(log_path,logging_name):
     handler.setFormatter(formatter)
     # console相当于控制台输出，handler文件输出。获取流句柄并设置日志级别，第二层过滤
     console = logging.StreamHandler()
+    console.setFormatter(formatter)
     console.setLevel(logging.DEBUG)
     # 为logger对象添加句柄
     logger.addHandler(handler)
     logger.addHandler(console)
     return logger
  
+def get_timezone()-> int:
+    s = time.strftime('%z', time.localtime())
+    timezone = int(s[1:2])
+    return timezone if s[0] == '+' else -timezone
+
 
 def timestamp_to_str(timestamp, fmt='%Y-%m-%d %H:%M') -> str:
     tz = pytz.timezone('Asia/Shanghai')
     return pytz.datetime.datetime.fromtimestamp(timestamp,tz).strftime(fmt)
 
+
+def str_to_timestamp(time_str, fmt='%Y-%m-%d %H:%M:%S'):
+    timeArray = time.strptime(time_str, fmt)
+    return int(time.mktime(timeArray))
+
+# 服务器时区任意，8代表时间字符串是东八区的（如果客户端时区也任意，则将时区当做参数传入替换8）
+def str_to_timestamp_advanced(time_str, fmt='%Y-%m-%d %H:%M:%S'):
+    timezone = get_timezone()
+    d = datetime.strptime(time_str, fmt)
+    return int(time.mktime(d.timetuple())) + (timezone - 8) * 60 * 60
 
 def get_time_now(fmt='%Y-%m-%d', tz=pytz.timezone('Asia/Shanghai'), delta=0) -> str:
     return (datetime.now(tz=tz) - timedelta(days=delta)).strftime(fmt)
@@ -51,7 +68,7 @@ def write_file(path, content):
         f.write(content)
 
 if __name__ == "__main__":
-    logger = logger_config(log_path='/var/log/crawler/gft_log.txt', logging_name='version')
+    logger = logger_config(log_path='test1', logging_name='version')
     logger_test = logger_config(log_path='log1.txt', logging_name='test')
     logger.info("sssss是是是")
     logger.error("是是是error")

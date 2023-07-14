@@ -3,17 +3,22 @@
 import os
 
 from werkzeug.middleware.proxy_fix import ProxyFix
-from flask import Flask
+from flask import Flask, current_app, request
 from celery import Celery, Task, platforms
 from celery.schedules import crontab
 
 from logging.config import dictConfig
 import redis
+from . import url_article
+from . import url_task
+from . import url_func
 
+urls = [url_article, url_task, url_func]
 
 def create_app(test_config=None) -> Flask:
     # create and configure the app
     if not test_config:
+        pass
         dictConfig({
             'version': 1,
             'formatters': {
@@ -43,6 +48,9 @@ def create_app(test_config=None) -> Flask:
         
 
     print('secret key: {}'.format(app.config['SECRET_KEY']))
+    # app.logger.info(dir(app.logger))
+    app.logger.info(app.logger.name)
+    app.logger.info(__name__)
     app.logger.info('secret key1: {}'.format(app.config['SECRET_KEY']))
     # app.config.from_mapping(
     #     SECRET_KEY='dev',
@@ -76,10 +84,10 @@ def create_app(test_config=None) -> Flask:
     from . import db
     db.init(app)
 
-    #导入注册路由
-    from . import article_url, task_url
-    app.register_blueprint(article_url.bp)
-    app.register_blueprint(task_url.bp)
+    # 注册路由
+    [app.register_blueprint(url.bp) for url in urls]
+    # register error handler
+    app.register_error_handler(404, id_not_found)
 
     app.extensions['db'] = db.db
     # store redis-cli
@@ -110,3 +118,12 @@ def celery_init_app(app: Flask) -> Celery:
     celery_app.set_default()
     app.extensions['celery'] = celery_app
     return celery_app
+
+
+# def page_not_found(e):
+    # current_app.logger.info(e)
+    # return {'code': 404}
+
+def id_not_found(e):
+    current_app.logger.info(e)
+    return {'code': 404, 'msg': 'id not found', 'success': False}

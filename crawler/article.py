@@ -143,7 +143,6 @@ async def init_fakeid(session, headers, cookies, token, search_key_fakeid,
     search_res = await fetch_multi_fakeid(session, search_key_fakeid, headers,
                                           cookies, token)
     # print('init_fakeid: ',search_res)
-    # fakeid_arr = []
     store = {}
     for index, res in enumerate(search_res):
         name = search_key_fakeid[index]
@@ -154,8 +153,6 @@ async def init_fakeid(session, headers, cookies, token, search_key_fakeid,
             selected = arr[0]
             print('关键字<{0}>搜索结果：{1}'.format(name, selected['nickname']))
             print('介绍 {}'.format(selected.get('signature')))
-            # fakeid_arr.append(selected['fakeid'])
-
             store[name] = json.dumps({
                 'fakeid': selected['fakeid'],
                 'nickname': selected['nickname'],
@@ -165,7 +162,6 @@ async def init_fakeid(session, headers, cookies, token, search_key_fakeid,
         else:
             print('无法搜索到 {}, 请重新确认关键字'.format(name))
     redis_cli.hset(FAKEIDS_KEY, mapping=store)
-    # return fakeid_arr
 
 
 async def fetch_multi_articles_by_counts(session,
@@ -210,7 +206,7 @@ async def fetch_multi_articles_by_counts(session,
     return results
 
 
-async def fetch_articles_minunit(session, fakeid, headers, cookies, token,
+async def fetch_articles_minunit(session, fakeid, official_account, headers, cookies, token,
                                  search_key, now_str):
     # count_article = 0
     begin = 0
@@ -245,6 +241,7 @@ async def fetch_articles_minunit(session, fakeid, headers, cookies, token,
         for article in app_msg_list:
             update_time = article['update_time']
             if timestamp_to_str(update_time, fmt='%Y-%m-%d') >= now_str:
+                article['extracted_from'] = official_account
                 results.append(article)
 
     app_log.info('{0} {1}-{2}: {3}'.format(now_str, fakeid, search_key,
@@ -252,53 +249,53 @@ async def fetch_articles_minunit(session, fakeid, headers, cookies, token,
     return results
 
 
-async def fetch_multi_articles(session,
-                               fakeid_arr,
-                               headers,
-                               cookies,
-                               token,
-                               article_search_key=['碳', '节能'],
-                               delta=0):
-    now_str = get_time_now(delta=delta)
-    tasks = []
-    results = []
-    if not len(article_search_key):
-        article_search_key = ['']
-    for fakeid in fakeid_arr:
-        for search_key in article_search_key:
-            tasks.append(
-                asyncio.create_task(
-                    fetch_articles_minunit(session, fakeid, headers, cookies,
-                                           token, search_key, now_str)))
-    res = await asyncio.gather(*tasks)
-    for i in res:
-        results.extend(i)
-    return results
+# async def fetch_multi_articles(session,
+#                                fakeid_arr,
+#                                headers,
+#                                cookies,
+#                                token,
+#                                article_search_key=['碳', '节能'],
+#                                delta=0):
+#     now_str = get_time_now(delta=delta)
+#     tasks = []
+#     results = []
+#     if not len(article_search_key):
+#         article_search_key = ['']
+#     for fakeid in fakeid_arr:
+#         for search_key in article_search_key:
+#             tasks.append(
+#                 asyncio.create_task(
+#                     fetch_articles_minunit(session, fakeid, headers, cookies,
+#                                            token, search_key, now_str)))
+#     res = await asyncio.gather(*tasks)
+#     for i in res:
+#         results.extend(i)
+#     return results
 
 
 async def fetch_multi_articles_unit(session,
-                                    fakeid_arr,
+                                    fakeid_dict,
                                     headers,
                                     cookies,
                                     token,
-                                    article_search_key=['碳', '节能'],
+                                    article_search_key=[],
                                     delta=0):
     now_str = get_time_now(delta=delta)
 
     results = []
     if not len(article_search_key):
         article_search_key = ['']
-    for fakeid in fakeid_arr:
+    for fakeid, official_account in fakeid_dict.items():
         for search_key in article_search_key:
-            res = await fetch_articles_minunit(session, fakeid, headers,
+            res = await fetch_articles_minunit(session, fakeid, official_account, headers,
                                                cookies, token, search_key,
                                                now_str)
-            await asyncio.sleep(60)
+            await asyncio.sleep(30)
             results.extend(res)
     return results
 
 
-def handle_articles_arr(articles):
+def handle_articles_arr(articles, topic):
     result = []
     duplicates = set()
     for article in articles:
@@ -307,6 +304,7 @@ def handle_articles_arr(articles):
         link = article['link']
         cover = article['cover']
         aid = article['aid']
+        extracted_from = article['extracted_from']
         if aid not in duplicates:
             duplicates.add(aid)
             # display_time = timestamp_to_str(update_time)
@@ -316,7 +314,8 @@ def handle_articles_arr(articles):
                 'link': link,
                 'update_time': update_time,
                 'cover': cover,
-                # 'topic': topic,
+                'topic': topic,
+                'extracted_from': extracted_from,
                 # 'display_time': display_time,
             })
     return result
@@ -355,12 +354,12 @@ def get_search_key_fakeid(redis_cli, arr):
     return res
 
 
-def get_fakeid_arr(redis_cli, arr):
+def get_fakeid_dict(redis_cli, arr):
     fakeid_dict = redis_cli.hgetall(FAKEIDS_KEY)
-    res = []
+    res = {}
     for name in arr:
         detail = json.loads(fakeid_dict[name])
-        res.append(detail['fakeid'])
+        res[detail['fakeid']] = name
     return res
 
 
@@ -398,7 +397,7 @@ async def task_unit(task, db=None, redis_cli=None):
     official_accounts_list = task.get('official_accounts', g_search_key)
     search_keys = task.get('search_keys', [])
     delta = task.get('delta', 0)
-    # topic = task.get('id', 1)
+    topic = task.get('id')
     print('start main----------')
     insert_data = []
 
@@ -417,18 +416,18 @@ async def task_unit(task, db=None, redis_cli=None):
         if len(search_key_fakeid):
             await init_fakeid(session, g_headers, g_cookies, g_token,
                               search_key_fakeid, redis_cli)
-        fakeid_arr = get_fakeid_arr(redis_cli, official_accounts_list)
-        print('fakeid_arr: {}'.format(fakeid_arr))
+        fakeid_dict = get_fakeid_dict(redis_cli, official_accounts_list) # key: fakeid val: official_account
+        print('fakeid_arr: {}'.format(fakeid_dict))
         articles_arr = await fetch_multi_articles_unit(
             session,
-            fakeid_arr,
+            fakeid_dict,
             g_headers,
             g_cookies,
             g_token,
             article_search_key=search_keys,
             delta=delta)
         print('article sum: {}'.format(len(articles_arr)))
-        result = handle_articles_arr(articles_arr)
+        result = handle_articles_arr(articles_arr, topic)
         print('remove duplicates article sum: {}'.format(len(result)))
         arr = await fetch_content(result, session)
         # pprint([(i['title'], i['aid'], i['link']) for i in arr])
