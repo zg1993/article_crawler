@@ -86,7 +86,7 @@ def get_task_list():
         'total': art_page_data.total,
         'records': [item.to_json() for item in art_page_data.items]
     }
-    app_log.info(data)
+    # app_log.info(data)
     return {
         'code': 200,
         'resultCode': '',

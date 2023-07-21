@@ -9,9 +9,12 @@ import aiohttp
 import json
 from datetime import datetime
 from crawler.utils import timestamp_to_str, write_file, get_time_now
-from crawler.parse_html import parese_wexin_article
+from crawler.parse_html import parse_wexin_article
 # test
 from crawler.utils import logger_config
+from crawler.aiohttp_fetch import fetch
+from crawler.sogou import main as sogou
+from common.const import SourceType
 from pprint import pprint
 # flaskr
 
@@ -106,17 +109,6 @@ def print_dict(d):
     print(json.dumps(d, indent=4, ensure_ascii=False))
 
 
-async def fetch(session, url, is_json=True, **kwargs):
-    async with session.get(url, **kwargs) as resp:
-        if resp.status != 200:
-            resp.raise_for_status()
-        if is_json:
-            data = await resp.json()
-        else:
-            data = await resp.text()
-        return data
-
-
 async def fetch_multi_fakeid(session, search_arr, headers, cookies, token):
     url = 'https://mp.weixin.qq.com/cgi-bin/searchbiz'
     tasks = []
@@ -206,8 +198,8 @@ async def fetch_multi_articles_by_counts(session,
     return results
 
 
-async def fetch_articles_minunit(session, fakeid, official_account, headers, cookies, token,
-                                 search_key, now_str):
+async def fetch_articles_minunit(session, fakeid, official_account, headers,
+                                 cookies, token, search_key, now_str):
     # count_article = 0
     begin = 0
     results = []
@@ -249,48 +241,26 @@ async def fetch_articles_minunit(session, fakeid, official_account, headers, coo
     return results
 
 
-# async def fetch_multi_articles(session,
-#                                fakeid_arr,
-#                                headers,
-#                                cookies,
-#                                token,
-#                                article_search_key=['碳', '节能'],
-#                                delta=0):
-#     now_str = get_time_now(delta=delta)
-#     tasks = []
-#     results = []
-#     if not len(article_search_key):
-#         article_search_key = ['']
-#     for fakeid in fakeid_arr:
-#         for search_key in article_search_key:
-#             tasks.append(
-#                 asyncio.create_task(
-#                     fetch_articles_minunit(session, fakeid, headers, cookies,
-#                                            token, search_key, now_str)))
-#     res = await asyncio.gather(*tasks)
-#     for i in res:
-#         results.extend(i)
-#     return results
-
-
 async def fetch_multi_articles_unit(session,
                                     fakeid_dict,
                                     headers,
                                     cookies,
                                     token,
+                                    now_str,
                                     article_search_key=[],
                                     delta=0):
-    now_str = get_time_now(delta=delta)
-
+    if delta or not now_str:                                    
+        now_str = get_time_now(delta=delta)
     results = []
     if not len(article_search_key):
         article_search_key = ['']
     for fakeid, official_account in fakeid_dict.items():
         for search_key in article_search_key:
-            res = await fetch_articles_minunit(session, fakeid, official_account, headers,
+            res = await fetch_articles_minunit(session, fakeid,
+                                               official_account, headers,
                                                cookies, token, search_key,
                                                now_str)
-            await asyncio.sleep(30)
+            await asyncio.sleep(5)
             results.extend(res)
     return results
 
@@ -326,7 +296,7 @@ async def fetch_content(arr, session, **kwargs):
     for article in arr:
         link = article['link']
         tasks_link.append(
-            asyncio.create_task(parse_wexin_article(session, link, **kwargs)))
+            asyncio.create_task(parse_article(session, link, **kwargs)))
     res = await asyncio.gather(*tasks_link)
     for index, content in enumerate(res):
         if content is None:
@@ -336,10 +306,10 @@ async def fetch_content(arr, session, **kwargs):
     return arr
 
 
-async def parse_wexin_article(session, url, **kwargs):
+async def parse_article(session, url, **kwargs):
     html_text = await fetch(session, url, is_json=False, **kwargs)
     # print('url: {}'.format(url))
-    new_html = parese_wexin_article(html_text)
+    new_html = parse_wexin_article(html_text)
     return new_html
     # path = '/home/zg/Documents/gftPackage/{}.html'.format('1.html')
     # write_file(path, html_text)
@@ -362,34 +332,40 @@ def get_fakeid_dict(redis_cli, arr):
         res[detail['fakeid']] = name
     return res
 
+async def crawler_sogou(task, db, now_str):
+    async with aiohttp.ClientSession() as session:
+        insert_arr = await sogou(now_str, task['search_keys'])
+        tasks = []
+        for article in insert_arr:
+            link = article['link']
+            article['topic'] = task['id']
+            article['aid'] = f'{article["update_time"]}_2'
+            tasks.append(asyncio.create_task(parse_article(session, link)))
+        res = await asyncio.gather(*tasks)
+        for index, content in enumerate(res):
+            if content is None:
+                print('content is None: {}'.format(insert_arr[index].get('link', '--')))
+            insert_arr[index]['content'] = content
+            # print(arr[index]['title'], len(content), type(content))
+        execute_insert(db, insert_arr)
 
 async def main(db=None, redis_cli=None):
+    now_str = get_time_now()
     with flask_app.app_context():
         res = Task.query.filter(Task.status == 1).all()
         task_arr = [i.to_json() for i in res]
-    for task in task_arr:
-        await task_unit(task, db, redis_cli)
+        for task in task_arr:
+            source = task['source']
+            if SourceType.WEIXIN == source:
+                await task_unit(now_str, task, db, redis_cli)
+            elif SourceType.SOGOU == source:
+                await crawler_sogou(task, db, now_str)
 
 
-async def task_unit(task, db=None, redis_cli=None):
+async def task_unit(now_str, task, db=None, redis_cli=None):
     # test
-    insert_data = []
-    # for i in
-    # if db:
-    #     for item in insert_data:
-    #         item['content'] = "<h1>wode</h1>"
-    #         art = Article(**item)
-    #         db.session.add(art)
-    #     # print('end commit ----')
-    #     print('start commit ----')
-    #     try:
-    #         db.session.commit()
-    #     except Exception as e:
-    #         print('error: ', e)
-    #     finally:
-    #         print('commit end ----')
-
     global g_token, g_headers, g_cookies, g_search_key, g_cookie_str
+    insert_data = []
     # 从redis里取 g_cookie_str
     if redis_cli:
         g_cookie_str = redis_cli.get(COOKEIS_KEY) or g_cookie_str
@@ -416,7 +392,9 @@ async def task_unit(task, db=None, redis_cli=None):
         if len(search_key_fakeid):
             await init_fakeid(session, g_headers, g_cookies, g_token,
                               search_key_fakeid, redis_cli)
-        fakeid_dict = get_fakeid_dict(redis_cli, official_accounts_list) # key: fakeid val: official_account
+        fakeid_dict = get_fakeid_dict(
+            redis_cli,
+            official_accounts_list)  # key: fakeid val: official_account
         print('fakeid_arr: {}'.format(fakeid_dict))
         articles_arr = await fetch_multi_articles_unit(
             session,
@@ -424,6 +402,7 @@ async def task_unit(task, db=None, redis_cli=None):
             g_headers,
             g_cookies,
             g_token,
+            now_str,
             article_search_key=search_keys,
             delta=delta)
         print('article sum: {}'.format(len(articles_arr)))
@@ -434,9 +413,12 @@ async def task_unit(task, db=None, redis_cli=None):
         # pprint([(i['title']) for i in arr])
         # insert_data = arr
         insert_data = list(filter(lambda i: i.get('content', None),
-                             arr))  # drop content is None
+                                  arr))  # drop content is None
         # print('arr', arr)
-    if db:
+    execute_insert(db, insert_data)
+
+def execute_insert(db, insert_data):
+     if db:
         with flask_app.app_context():
             try:
                 start_time = time.time()
@@ -449,8 +431,6 @@ async def task_unit(task, db=None, redis_cli=None):
                 # print('insert error: {}'.format(e))
                 app_log.info(e)
                 handle_duplicate_key(db, insert_data)
-            # print('typeof(e): {}'.format(type(e)))
-
 
 def handle_duplicate_key(db, insert_data):
     print('--start-duplicate {}'.format(len(insert_data)))

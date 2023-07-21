@@ -3,9 +3,11 @@
 from bs4 import BeautifulSoup
 import requests
 from .utils import write_file
+import math
+import random
 
 
-def parese_wexin_article(html_text):
+def parse_wexin_article(html_text):
     try:
         soup = BeautifulSoup(html_text, 'lxml')
         title = soup.find(property='og:title')
@@ -32,8 +34,46 @@ def parese_wexin_article(html_text):
     except Exception as e:
         print(e)
         return None
+    
+def link_sogou_analysis(href: str):
+    b = math.floor(random.random()  * 100 + 1)
+    a = href.index('url=')
+    a = href[a + 4 + 21 + b]
+    link = f'{href}&k={b}&h={a}'
+    return f'https://weixin.sogou.com/{link}'
+    
+# def get_sogou_link(href: str):
+#     pass
 
-def parese_wexin_article_(html_text):
+
+def parse_sougou_pages(html_text) -> list:
+    try:
+        soup = BeautifulSoup(html_text, 'lxml')
+        li_list = soup.find('ul', class_='news-list').find_all('li')
+        res = []
+        for li in li_list:
+            cover = 'https:' + li.find('img').get('src')
+            title = li.select_one('.txt-box>h3>a').text
+            update_time = li.find('div', class_='s-p').get('t')
+            extracted_from = li.select_one('.s-p>.account').text
+            href = li.select_one('.txt-box>h3>a').get('href')
+            href = link_sogou_analysis(href)
+            # link = get_sogou_link(href)
+            res.append({
+                'cover': cover,
+                'title': title,
+                'update_time': int(update_time),
+                'extracted_from': extracted_from,
+                'link': href,
+            })
+        return res
+    except Exception as e:
+        print(e)
+        print(html_text)
+
+
+
+def parse_wexin_article_(html_text):
     # url = 'https://mp.weixin.qq.com/s?__biz=MjM5OTU4Nzc0Mg==&mid=2658853306&idx=1&sn=f39bb57ae7e368be93b73ec06755c967&chksm=bcb77b4b8bc0f25d8e2bc06f0c5119bffef4d2e48ba28a74f467dc3abf79cd265c2da5f0a900&token=1327459081&lang=zh_CN#rd'
     url = 'https://mp.weixin.qq.com/s?__biz=MzAwODk0NzU4OA==&mid=2247521644&idx=1&sn=9c1a9c735f2fdd05c127fc63b81104da&chksm=9b65c787ac124e9129c6089609d34a3e27a3178147ee58253617c7c92684905fea33aca075b8#rd'
     html_text = requests.get(url).text
@@ -73,7 +113,7 @@ def parese_wexin_article_(html_text):
 
 
 if __name__ == '__main__':
-    parese_wexin_article_('')
+    parse_wexin_article_('')
 
 
 

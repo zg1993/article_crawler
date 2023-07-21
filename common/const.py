@@ -13,3 +13,8 @@ class Code():
 
 class Message():
     pass
+
+
+class SourceType():
+    WEIXIN = '微信公众号'
+    SOGOU = '搜狗微信'

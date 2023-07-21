@@ -3,7 +3,7 @@
 import functools
 
 from flask import (Blueprint, redirect, request, session, url_for,
-                   current_app )
+                   current_app, jsonify )
 from flaskr.db import db
 from .model import Article, Book, Task
 from sqlalchemy import func
@@ -17,11 +17,23 @@ COOKEIS_KEY = 'crawler:cookies'
 def update_cookies():
     try:
         redis_cli = current_app.extensions['redis']
-        res = redis_cli.set(COOKEIS_KEY, request.form['cookies'])
+        data = request.get_json()
+        res = redis_cli.set(COOKEIS_KEY, data['cookies'])
         code = 200 if res is True else 500
-        return {'code': code, 'res': redis_cli.get(COOKEIS_KEY)}
+        return {'code': code, 'data': redis_cli.get(COOKEIS_KEY), 'success': True}
     except Exception as e:
         return {'code': 500, 'res': e}
+
+@bp.route('/check_cookies')
+def check_cookies():
+    from crawler.article import get_token1
+    try:
+        redis_cli = current_app.extensions['redis']
+        res = get_token1(redis_cli)
+        current_app.logger.info(res)
+        return jsonify({'code': 200, 'data': '有效' if res else '已失效', 'success': True})
+    except Exception as e:
+        return jsonify({'code': 500, 'res': e})
 
 @bp.route('/start_now')
 def start_now():
