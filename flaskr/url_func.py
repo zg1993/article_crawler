@@ -7,11 +7,28 @@ from flask import (Blueprint, redirect, request, session, url_for,
 from flaskr.db import db
 from .model import Article, Book, Task
 from sqlalchemy import func
-
+import asyncio
 
 bp = Blueprint('func', __name__, url_prefix='/func')
 
 COOKEIS_KEY = 'crawler:cookies'
+    
+
+@bp.route('/start_now_task', methods=['POST'])
+def start_now_task():
+    from crawler.article import execute_task
+    data = request.get_json()
+    redis_cli = current_app.extensions['redis']
+    ID = data.get('id')
+    start_time = data.get('start_time')
+    end_time = data.get('end_time')
+    res = Task.query.get(ID)
+    if res:
+        task = res.to_json()
+        current_app.logger.info(task)
+        asyncio.run(execute_task(task, db, redis_cli, None, start_time=start_time, end_time=end_time))
+    response = {'code': 200, 'success': True if res else False}
+    return jsonify(response)
 
 @bp.route("/update_cookies", methods=['POST'])
 def update_cookies():
@@ -42,7 +59,7 @@ def start_now():
     # return {'code': 200, 'res': res.id}
 
 
-@bp.route('/redis')
+# @bp.route('/redis')
 def get_dbsize():
     redis_cli = current_app.extensions['redis']
     return {'code': 200, 'res': redis_cli.dbsize()}

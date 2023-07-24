@@ -29,15 +29,11 @@ COOKEIS_KEY = 'crawler:cookies'
 app_log = logger_config(log_path='/var/log/crawler/crawler_log.txt',
                         logging_name='crawler')
 
-# 时间取updatetime
-
-# g_search_key = [ '半月谈', '国资小新', '秘书工作', '书院的天空', '综合能源服务圈', '华夏能源网', '能源新闻']
 g_search_key = ['抚州发布']
 
 g_fakeid_dict = {}
 g_token = ''
 g_cookie_str = 'appmsglist_action_3928503461=card; noticeLoginFlag=1; remember_acct=604328914%40qq.com; pgv_pvid=2924024080; pac_uid=0_050e9ae06ea51; tvfe_boss_uuid=890b429a39ebc7ca; RK=Gelp6pi4Xf; ptcz=66aa14b01a2ea41e402cfba10b10b07334b9709205e4229b0df45cf26d1a7997; fqm_pvqid=8197a091-1292-41b4-8874-b5719a04e115; ptui_loginuin=604328914; ua_id=jW09Y9qMMJuUgdQ1AAAAANDk3XKvP74QfmGGFt4DCq0=; wxuin=86107293996414; mm_lang=zh_CN; noticeLoginFlag=1; cert=9bBIg6HXL0ZvmwL9lmZAsF7eQEceSzfd; rewardsn=; wxtokenkey=777; wwapp.vid=; wwapp.cst=; wwapp.deviceid=; bizuin=3928503461; ticket=b472cad5681fe1d47b9c264476a072c7eb3b1e49; ticket_id=gh_9b10aff30334; slave_bizuin=3928503461; uuid=ea4fd82ecd84c9111adb94aa5ed85032; rand_info=CAESIJ48gs/Q8FqeGMpVP6lyl+yPQNyU66SxufVJ/hDSn1rT; data_bizuin=3928503461; data_ticket=qRN6wTqIA6H3UO1Ie8S4c/WtyOa/wI47vsp0UemcT110RVbiApjMGddTaDmWwtDO; slave_sid=ejQ5VWQyX0ZlX3ZBOEhpX1luVEFZWnZ0T2hJNlNad0l4bmJGUWhYRDFBdXlLYlE0dHpCUUluVG41MzdJWG9sVlNjZmRIcTVlVTk2cUptRHhMcEJpWGdTanBqUTRfQ2toQ0ZySWZ6RkNwcWRPb19tNVJvMVVSc2N6d0YxaWJtV0JLeGc4VnBNdFd6U1pHRUhS; slave_user=gh_9b10aff30334; xid=4e5d42e11c5eb6639dfdb3afc481b1f3; openid2ticket_opTQo6rYA33kqeYqkKRaa0BAPji4=Wx6NM4BLLHVIbdCjILZzLTgpE2O+AhxP2zwjB0mCVzs=; _clck=3928503461|1|fcu|0; _clsk=131sz9a|1687940181775|3|1|mp.weixin.qq.com/weheat-agent/payload/record'
-# g_cookie_str = 'pgv_pvid=2924024080; pac_uid=0_050e9ae06ea51; tvfe_boss_uuid=890b429a39ebc7ca; RK=Gelp6pi4Xf; ptcz=66aa14b01a2ea41e402cfba10b10b07334b9709205e4229b0df45cf26d1a7997; fqm_pvqid=8197a091-1292-41b4-8874-b5719a04e115; ptui_loginuin=604328914; ua_id=jW09Y9qMMJuUgdQ1AAAAANDk3XKvP74QfmGGFt4DCq0=; wxuin=86107293996414; mm_lang=zh_CN; noticeLoginFlag=1; cert=9bBIg6HXL0ZvmwL9lmZAsF7eQEceSzfd; _clck=3928503461|1|fcr|0; uuid=8abd1b0f3452eb0a438757ba1726a0c2; bizuin=3928503461; ticket=6f090ad342a5ffc1312c3fde61ffc2352f48c030; ticket_id=gh_9b10aff30334; slave_bizuin=3928503461; rand_info=CAESIMV9caHy/7MNPw3a0GgAbHrFd0kBbAygbc/Vrmyx4KiC; data_bizuin=3928503461; data_ticket=Y9NEs5Nn52v8qyoKMhbKS8h6ARMu7E2PF7jhYpgmfQh98xkoGemhCtQBpj3sjSvC; slave_sid=UlpxSHJYVmpfcG9GMDNjRkNzZDI0Rm1YcVhRMFo4eGU2YUZTNF9JVHF2cnYzRUw1UTVnaGptRjNJMU5XMFpPSGpXYmZRbmNRQlZObElrZTI1R2lIQWtpU2pKd0dHc2VVbDdlZGxSaGtpQkhEU00wZVpXOWJjQXZLZ0c3OWwxQ0pERzNPRzIwaHBKdHVxSDJR; slave_user=gh_9b10aff30334; xid=9c3b8cb6836f39a19c8a5b7c36899b77; openid2ticket_opTQo6rYA33kqeYqkKRaa0BAPji4=YFxS4/EMPWyWgWABCQnbRAe8BjHejO4hvkvjfMZjS0w=; _clsk=1hq4e12|1687660203545|5|1|mp.weixin.qq.com/weheat-agent/payload/record'
 
 g_cookies = {}
 g_headers = {
@@ -53,56 +49,28 @@ g_redis = None
 g_count = 20
 
 
-def load_cookies():
-    import urllib
-    global g_cookie_str, g_cookies
+def load_cookies(cookei_str):
+    cookies = {}
     prog = re.compile(r'\s?(?P<key>.*?)=(?P<val>.*)\s?')
-    for item in g_cookie_str.split(';'):
+    for item in cookei_str.split(';'):
         key, val = prog.match(item).groups()
-        g_cookies[key] = val
+        cookies[key] = val
         # if 'pgv_pvid' == key:
-        #     g_cookies[key] = urllib.parse.unquote(val)\\
-    print(g_cookies)
-    print(type(g_cookies))
-
-
-async def get_token(session: aiohttp.ClientSession):
-    global g_headers, g_cookies
-    load_cookies()
-    # print('cookies--:', g_cookies)
-    url = 'https://mp.weixin.qq.com'
-    async with session.get(url=url, headers=g_headers) as resp:
-        print(str(resp.url))
-        if 200 == resp.status:
-            token = re.findall(r'.*?token=(\d+)', str(resp.url))
-            if token:
-                token = token[0]
-                return token
-            else:
-                app_log.warning('登录失败')
-                return
-
+        #     cookies[key] = urllib.parse.unquote(val)\\
+    return cookies
 
 def get_token1(redis_cli):
     import requests
-    global g_headers, cookies
-    # load_cookies()
+    global g_headers
+    cookies = load_cookies(redis_cli.get(COOKEIS_KEY))
+    # app_log = current_app.logger
     url = 'https://mp.weixin.qq.com'
     res = requests.Session().get(url=url,
                                  headers=g_headers,
-                                 cookies=g_cookies,
+                                 cookies=cookies,
                                  verify=False)
-    # app_log.info(res.url)
-    # app_log.info(res.url)
-    # app_log.info(res.status_code)
-    if 'https://mp.weixin.qq.com/' == res.url:
-        cookies = redis_cli.get(COOKEIS_KEY)
-        res = requests.Session().get(url=url,
-                                     headers=g_headers,
-                                     cookies=g_cookies,
-                                     verify=False)
     return re.findall(r'.*?token=(\d+)', res.url)
-    # app_log.info(res.links)
+    
 
 
 def print_dict(d):
@@ -134,7 +102,6 @@ async def init_fakeid(session, headers, cookies, token, search_key_fakeid,
                       redis_cli):
     search_res = await fetch_multi_fakeid(session, search_key_fakeid, headers,
                                           cookies, token)
-    # print('init_fakeid: ',search_res)
     store = {}
     for index, res in enumerate(search_res):
         name = search_key_fakeid[index]
@@ -199,13 +166,21 @@ async def fetch_multi_articles_by_counts(session,
 
 
 async def fetch_articles_minunit(session, fakeid, official_account, headers,
-                                 cookies, token, search_key, now_str):
+                                 cookies, token, search_key, now_str, **kwargs):
     # count_article = 0
     begin = 0
     results = []
     last_time = '9'
     url = 'https://mp.weixin.qq.com/cgi-bin/appmsg'
-    while last_time >= now_str:
+    start_time = kwargs.get('start_time')
+    end_time = kwargs.get('end_time')
+    if start_time and end_time:
+        app_log.info(f'start_time: {start_time}')
+        app_log.info(f'end_time: {end_time}')
+    else:
+        start_time = now_str
+        end_time = '9'
+    while last_time >= start_time:
         params = {
             'action': 'list_ex',
             'begin': begin,
@@ -232,7 +207,11 @@ async def fetch_articles_minunit(session, fakeid, official_account, headers,
         # count_article = count_article + len(app_msg_list)
         for article in app_msg_list:
             update_time = article['update_time']
-            if timestamp_to_str(update_time, fmt='%Y-%m-%d') >= now_str:
+            update_time_str = timestamp_to_str(update_time, fmt='%Y-%m-%d')
+            # app_log.info(f'{official_account}: update_time: {update_time_str}')
+            # app_log.info(update_time_str >= start_time)
+            # app_log.info(update_time_str <= end_time)
+            if update_time_str >= start_time and update_time_str <= end_time:
                 article['extracted_from'] = official_account
                 results.append(article)
 
@@ -248,8 +227,8 @@ async def fetch_multi_articles_unit(session,
                                     token,
                                     now_str,
                                     article_search_key=[],
-                                    delta=0):
-    if delta or not now_str:                                    
+                                    delta=0, **kwargs):
+    if delta or not now_str:                                   
         now_str = get_time_now(delta=delta)
     results = []
     if not len(article_search_key):
@@ -259,7 +238,7 @@ async def fetch_multi_articles_unit(session,
             res = await fetch_articles_minunit(session, fakeid,
                                                official_account, headers,
                                                cookies, token, search_key,
-                                               now_str)
+                                               now_str, **kwargs)
             await asyncio.sleep(5)
             results.extend(res)
     return results
@@ -332,9 +311,9 @@ def get_fakeid_dict(redis_cli, arr):
         res[detail['fakeid']] = name
     return res
 
-async def crawler_sogou(task, db, now_str):
+async def crawler_sogou(task, db, now_str, **kwargs):
     async with aiohttp.ClientSession() as session:
-        insert_arr = await sogou(now_str, task['search_keys'])
+        insert_arr = await sogou(now_str, task['search_keys'], **kwargs)
         tasks = []
         for article in insert_arr:
             link = article['link']
@@ -349,42 +328,45 @@ async def crawler_sogou(task, db, now_str):
             # print(arr[index]['title'], len(content), type(content))
         execute_insert(db, insert_arr)
 
+async def execute_task(task, db, redis_cli, now_str, **kwargs):
+    source = task['source']
+    if SourceType.WEIXIN == source:
+        await task_unit(now_str, task, db, redis_cli, **kwargs)
+    elif SourceType.SOGOU == source:
+        await crawler_sogou(task, db, now_str, **kwargs)
+
 async def main(db=None, redis_cli=None):
     now_str = get_time_now()
     with flask_app.app_context():
         res = Task.query.filter(Task.status == 1).all()
         task_arr = [i.to_json() for i in res]
         for task in task_arr:
-            source = task['source']
-            if SourceType.WEIXIN == source:
-                await task_unit(now_str, task, db, redis_cli)
-            elif SourceType.SOGOU == source:
-                await crawler_sogou(task, db, now_str)
+            await execute_task(task, db, redis_cli, now_str)
+            # source = task['source']
+            # if SourceType.WEIXIN == source:
+            #     await task_unit(now_str, task, db, redis_cli)
+            # elif SourceType.SOGOU == source:
+            #     await crawler_sogou(task, db, now_str)
 
 
-async def task_unit(now_str, task, db=None, redis_cli=None):
+async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
     # test
     global g_token, g_headers, g_cookies, g_search_key, g_cookie_str
     insert_data = []
     # 从redis里取 g_cookie_str
-    if redis_cli:
-        g_cookie_str = redis_cli.get(COOKEIS_KEY) or g_cookie_str
-
+    g_cookie_str = redis_cli.get(COOKEIS_KEY)
     official_accounts_list = task.get('official_accounts', g_search_key)
     search_keys = task.get('search_keys', [])
     delta = task.get('delta', 0)
     topic = task.get('id')
     print('start main----------')
     insert_data = []
-
     # search_name_key = g_search_key
-    load_cookies()
+    g_cookies = load_cookies(g_cookie_str)
     search_key_fakeid = get_search_key_fakeid(redis_cli,
                                               official_accounts_list)
     async with aiohttp.ClientSession() as session:
         g_token = get_token1(redis_cli)
-        # g_token = await get_token(session)
-        # app_log.info(g_token)
         if not g_token:
             app_log.info('cookies expired')
             return
@@ -404,7 +386,7 @@ async def task_unit(now_str, task, db=None, redis_cli=None):
             g_token,
             now_str,
             article_search_key=search_keys,
-            delta=delta)
+            delta=delta, **kwargs)
         print('article sum: {}'.format(len(articles_arr)))
         result = handle_articles_arr(articles_arr, topic)
         print('remove duplicates article sum: {}'.format(len(result)))
@@ -419,12 +401,13 @@ async def task_unit(now_str, task, db=None, redis_cli=None):
 
 def execute_insert(db, insert_data):
      if db:
-        with flask_app.app_context():
+        with current_app.app_context():
             try:
                 start_time = time.time()
+                # return 
                 with db.auto_commit_db():
                     db.session.bulk_insert_mappings(Article, insert_data)
-                print('insert {0} data, spend {1} seconds'.format(
+                app_log.info('insert {0} data, spend {1} seconds'.format(
                     len(insert_data),
                     time.time() - start_time))
             except Exception as e:

@@ -27,7 +27,7 @@ def resolve_sogou_link(link_html):
     return ''.join(str_arr)
 
 
-async def search_result(session: aiohttp.ClientSession, search, now_str, delta=0):
+async def search_result(session: aiohttp.ClientSession, search, now_str, delta=0, **kwargs):
     if delta != 0 or not now_str:
         now_str = get_time_now(delta=delta)
     count = 0
@@ -70,7 +70,7 @@ async def search_result(session: aiohttp.ClientSession, search, now_str, delta=0
     return filter_arr
     # return filter(lambda i: timestamp_to_str(i['update_time'], fmt='%Y-%m-%d') >= now_str)
 
-async def main(now_str, search_keys=['双碳']):
+async def main(now_str, search_keys=['双碳'], **kwargs):
     try:
         headers = {
             'User-Agent':
@@ -83,7 +83,7 @@ async def main(now_str, search_keys=['双碳']):
             print(f'serach_keys---: {search_keys}')
             for search in search_keys:
                 assert search    
-                res =  await search_result(session, search, now_str)
+                res =  await search_result(session, search, now_str, **kwargs)
                 insert_data.extend(res)
                 await asyncio.sleep(1)
             return insert_data
