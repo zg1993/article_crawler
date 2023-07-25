@@ -35,6 +35,9 @@ def logger_config(log_path,logging_name):
     logger.addHandler(handler)
     logger.addHandler(console)
     return logger
+
+app_log = logger_config(log_path='/var/log/crawler/crawler_log.txt',
+                        logging_name='crawler')
  
 def get_timezone()-> int:
     s = time.strftime('%z', time.localtime())

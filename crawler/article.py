@@ -11,7 +11,7 @@ from datetime import datetime
 from crawler.utils import timestamp_to_str, write_file, get_time_now
 from crawler.parse_html import parse_wexin_article
 # test
-from crawler.utils import logger_config
+from crawler.utils import app_log
 from crawler.aiohttp_fetch import fetch
 from crawler.sogou import main as sogou
 from common.const import SourceType
@@ -26,8 +26,7 @@ from flaskr.model import Article, Task
 FAKEIDS_KEY = 'crawler:fakeids'
 COOKEIS_KEY = 'crawler:cookies'
 
-app_log = logger_config(log_path='/var/log/crawler/crawler_log.txt',
-                        logging_name='crawler')
+
 
 g_search_key = ['抚州发布']
 
