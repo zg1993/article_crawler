@@ -18,3 +18,5 @@ class Message():
 class SourceType():
     WEIXIN = '微信公众号'
     SOGOU = '搜狗微信'
+
+SNUID_KEY = 'crawler:snuid'

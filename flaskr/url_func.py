@@ -8,6 +8,7 @@ from flaskr.db import db
 from .model import Article, Book, Task
 from sqlalchemy import func
 import asyncio
+from common.const import SNUID_KEY
 
 bp = Blueprint('func', __name__, url_prefix='/func')
 
@@ -38,6 +39,17 @@ def update_cookies():
         res = redis_cli.set(COOKEIS_KEY, data['cookies'])
         code = 200 if res is True else 500
         return {'code': code, 'data': redis_cli.get(COOKEIS_KEY), 'success': True}
+    except Exception as e:
+        return {'code': 500, 'res': e}
+
+@bp.route('/update_snuid', methods=['POST'])
+def update_snuid():
+    try:
+        redis_cli = current_app.extensions['redis']
+        data = request.get_json()
+        res = redis_cli.set(SNUID_KEY, data['snuid'])
+        code = 200 if res is True else 500
+        return {'code': code, 'data': redis_cli.get(SNUID_KEY), 'success': True}
     except Exception as e:
         return {'code': 500, 'res': e}
 

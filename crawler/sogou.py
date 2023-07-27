@@ -11,6 +11,7 @@ import random
 from crawler.utils import timestamp_to_str, get_time_now, app_log
 from crawler.aiohttp_fetch import fetch
 from crawler.parse_html import parse_sougou_pages, parse_wexin_article
+from common.const import SNUID_KEY
 
 
 
@@ -73,13 +74,17 @@ async def search_result(session: aiohttp.ClientSession, search, now_str, delta=0
     return filter_arr
     # return filter(lambda i: timestamp_to_str(i['update_time'], fmt='%Y-%m-%d') >= now_str)
 
-async def main(now_str, search_keys=['双碳'], **kwargs):
+async def main(now_str, search_keys=['双碳'], redis_cli=None, **kwargs):
     try:
+        snuid = '3351C063151214EE11A6DC721500188F'
+        if redis_cli is not None:
+            snuid_redis = redis_cli.get(SNUID_KEY)
+            snuid = snuid_redis if snuid_redis else snuid
         headers = {
             'User-Agent':
             'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.0.0 Safari/537.36',
             'Cookie':
-            'ssuid=3662390464; SUID=7A8ABB2A492CA20A0000000063E9892F; IPLOC=CN3610; SUV=008BC68E76D4452764803734AE111982; ABTEST=7|1688720177|v1; JSESSIONID=aaacpejJR0uwk9WtBGAIy; ariaDefaultTheme=default; ariaFixed=true; ariaReadtype=1; ariaStatus=false; cuid=AAFVLU0iRgAAAAqHS2W8eQAAbgQ=; PHPSESSID=80ou0i2o55hml0u12hnaoef306; SNUID=3351C063151214EE11A6DC721500188F'
+            f'ssuid=3662390464; SUID=7A8ABB2A492CA20A0000000063E9892F; IPLOC=CN3610; SUV=008BC68E76D4452764803734AE111982; ABTEST=7|1688720177|v1; JSESSIONID=aaacpejJR0uwk9WtBGAIy; ariaDefaultTheme=default; ariaFixed=true; ariaReadtype=1; ariaStatus=false; cuid=AAFVLU0iRgAAAAqHS2W8eQAAbgQ=; PHPSESSID=80ou0i2o55hml0u12hnaoef306; SNUID={snuid}'
         }
         async with aiohttp.ClientSession(headers=headers) as session:
             insert_data = []

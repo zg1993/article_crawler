@@ -25,7 +25,7 @@ def logger_config(log_path,logging_name):
     handler = logging.FileHandler(log_path, encoding='UTF-8')
     handler.setLevel(logging.INFO)
     # 生成并设置文件日志格式
-    formatter = logging.Formatter('[%(asctime)s - %(name)s - %(levelname)s - %(lineno)s]  %(message)s')
+    formatter = logging.Formatter('[%(asctime)s - %(name)s- %(filename)s - %(levelname)s - %(lineno)s]  %(message)s')
     handler.setFormatter(formatter)
     # console相当于控制台输出，handler文件输出。获取流句柄并设置日志级别，第二层过滤
     console = logging.StreamHandler()

@@ -26,8 +26,6 @@ from flaskr.model import Article, Task
 FAKEIDS_KEY = 'crawler:fakeids'
 COOKEIS_KEY = 'crawler:cookies'
 
-
-
 g_search_key = ['抚州发布']
 
 g_fakeid_dict = {}
@@ -310,9 +308,9 @@ def get_fakeid_dict(redis_cli, arr):
         res[detail['fakeid']] = name
     return res
 
-async def crawler_sogou(task, db, now_str, **kwargs):
+async def crawler_sogou(task, db, now_str, redis_cli, **kwargs):
     async with aiohttp.ClientSession() as session:
-        insert_arr = await sogou(now_str, task['search_keys'], **kwargs)
+        insert_arr = await sogou(now_str, task['search_keys'], redis_cli=redis_cli,**kwargs)
         tasks = []
         for article in insert_arr:
             link = article['link']
@@ -332,7 +330,7 @@ async def execute_task(task, db, redis_cli, now_str, **kwargs):
     if SourceType.WEIXIN == source:
         await task_unit(now_str, task, db, redis_cli, **kwargs)
     elif SourceType.SOGOU == source:
-        await crawler_sogou(task, db, now_str, **kwargs)
+        await crawler_sogou(task, db, now_str, redis_cli,**kwargs)
 
 async def main(db=None, redis_cli=None):
     now_str = get_time_now()
