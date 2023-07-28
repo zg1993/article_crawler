@@ -14,7 +14,7 @@ from crawler.parse_html import parse_wexin_article
 from crawler.utils import app_log
 from crawler.aiohttp_fetch import fetch
 from crawler.sogou import main as sogou
-from common.const import SourceType
+from common.const import SourceType, TASK_SET_KEY
 from pprint import pprint
 # flaskr
 
@@ -55,6 +55,12 @@ def load_cookies(cookei_str):
         # if 'pgv_pvid' == key:
         #     cookies[key] = urllib.parse.unquote(val)\\
     return cookies
+
+def cal_date_cookies(redis_cli):
+    clsk = load_cookies(redis_cli.get(COOKEIS_KEY)).get('_clsk', '')
+    timestamp = int(clsk.split('|')[1]) / 1000
+    timestamp = timestamp + 60 * 60 * 24 * 4
+    return timestamp_to_str(timestamp)
 
 def get_token1(redis_cli):
     import requests
@@ -309,8 +315,13 @@ def get_fakeid_dict(redis_cli, arr):
     return res
 
 async def crawler_sogou(task, db, now_str, redis_cli, **kwargs):
+    filters = [Task.id == task.get('id')]
     async with aiohttp.ClientSession() as session:
-        insert_arr = await sogou(now_str, task['search_keys'], redis_cli=redis_cli,**kwargs)
+        insert_arr = await sogou(now_str, task['search_keys'], redis_cli=redis_cli, **kwargs)
+        if insert_arr is None:
+            app_log.info('sogou insert is None')
+            execute_update(db, filters, {'execute_status': -1})
+            return
         tasks = []
         for article in insert_arr:
             link = article['link']
@@ -324,6 +335,7 @@ async def crawler_sogou(task, db, now_str, redis_cli, **kwargs):
             insert_arr[index]['content'] = content
             # print(arr[index]['title'], len(content), type(content))
         execute_insert(db, insert_arr)
+        execute_update(db, filters, {'execute_status': 1, 'last_execute_time': now_str})
 
 async def execute_task(task, db, redis_cli, now_str, **kwargs):
     source = task['source']
@@ -331,25 +343,34 @@ async def execute_task(task, db, redis_cli, now_str, **kwargs):
         await task_unit(now_str, task, db, redis_cli, **kwargs)
     elif SourceType.SOGOU == source:
         await crawler_sogou(task, db, now_str, redis_cli,**kwargs)
+    
 
-async def main(db=None, redis_cli=None):
+async def main(db=None, redis_cli=None, filters=[], update=False):
     now_str = get_time_now()
     with flask_app.app_context():
-        res = Task.query.filter(Task.status == 1).all()
+        res = Task.query.filter(*filters).all()
         task_arr = [i.to_json() for i in res]
+        # if update and len(task_arr):
+        #     filters = [Task.execute_status == 0]
+        #     execute_update(db, filters, {'execute_status': 2} )
+        #     task_arr = [i for i in task_arr if i.get('execute_status') == 0]
+
         for task in task_arr:
-            await execute_task(task, db, redis_cli, now_str)
-            # source = task['source']
-            # if SourceType.WEIXIN == source:
-            #     await task_unit(now_str, task, db, redis_cli)
-            # elif SourceType.SOGOU == source:
-            #     await crawler_sogou(task, db, now_str)
+            start_time=task.get('start_time')
+            end_time=task.get('end_time')
+            ID = task.get('id')
+            if not update:
+                await execute_task(task, db, redis_cli, now_str, update=update)
+            elif update and redis_cli.srem(TASK_SET_KEY, ID):
+                app_log.info(f'execute start now task {task.get("name")}: {start_time}-{end_time}')
+                await execute_task(task, db, redis_cli, now_str, start_time=start_time, end_time=end_time, update=update)
 
 
 async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
     # test
     global g_token, g_headers, g_cookies, g_search_key, g_cookie_str
     insert_data = []
+    filters = [Task.id == task.get('id')]
     # 从redis里取 g_cookie_str
     g_cookie_str = redis_cli.get(COOKEIS_KEY)
     official_accounts_list = task.get('official_accounts', g_search_key)
@@ -366,6 +387,9 @@ async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
         g_token = get_token1(redis_cli)
         if not g_token:
             app_log.info('cookies expired')
+            # update = kwargs.get('update')
+            # if update:
+            execute_update(db, filters, {'execute_status': -1})
             return
         g_headers['cookie'] = g_cookie_str
         if len(search_key_fakeid):
@@ -395,6 +419,7 @@ async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
                                   arr))  # drop content is None
         # print('arr', arr)
     execute_insert(db, insert_data)
+    execute_update(db, filters, {'execute_status': 1, 'last_execute_time': now_str})
 
 def execute_insert(db, insert_data):
      if db:
@@ -412,6 +437,15 @@ def execute_insert(db, insert_data):
                 app_log.info(e)
                 handle_duplicate_key(db, insert_data)
 
+def execute_update(db, filters, value):
+    with current_app.app_context():
+        try:
+            with db.auto_commit_db():
+                res = Task.query.filter(*filters).update(value)
+                app_log.info(res)
+        except Exception as e:
+            app_log.error(e)
+
 def handle_duplicate_key(db, insert_data):
     print('--start-duplicate {}'.format(len(insert_data)))
     for item in insert_data:
@@ -427,17 +461,25 @@ def handle_duplicate_key(db, insert_data):
 
 
 def my_clock(db_cli, redis_cli):
-    print(redis_cli.dbsize())
-    print(db_cli)
     print('start: {}'.format(datetime.now()))
-
     # with flask_app.app_context():
     #     res = Task.query.filter(Task.status==1).all()
     #     task_arr = [i.to_json() for i in res]
     # print(task_arr)
-
-    asyncio.run(main(db_cli, redis_cli))
+    filters = [Task.status == 1]
+    asyncio.run(main(db_cli, redis_cli, filters))
     # print('end: {}'.format(datetime.now()))
+
+def start_now(db_cli, redis_cli):
+    # app_log.info(datetime.now())
+    filters = [Task.execute_status == 0]
+    asyncio.run(main(db_cli, redis_cli, filters, update=True))
+    # asyncio.run()
+
+def test():
+    import requests
+    res = requests.get('http://192.168.110.240:3000/crawler/func/check_cookies')
+    app_log.info(res.text)
 
 
 if __name__ == '__main__':
@@ -454,6 +496,8 @@ if __name__ == '__main__':
                       hour=23,
                       minute=55,
                       args=[db_cli, redis_cli])
+    scheduler.add_job(start_now, 'interval', minutes=5, args=[db_cli, redis_cli])
+    scheduler.add_job(test, 'interval', minutes=30)
     if len(sys.argv) == 2:
         my_clock(db_cli, redis_cli)
     # scheduler.add_job(my_clock, 'interval', seconds=6, args=[db_cli, redis_cli])

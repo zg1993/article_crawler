@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS task(
   delta INT NOT NULL DEFAULT 0,
   period VARCHAR(20)  NOT NULL DEFAULT '23:50',
   status SMALLINT  NOT NULL DEFAULT 0,
+  last_execute_time DATETIME,
+  execute_status SMALLINT DATETIME 1,
+  start_time VARCHAR(20) DATETIME '',
+  end_time VARCHAR(20) DATETIME '',
   PRIMARY KEY (`id`)
 ) DEFAULT CHARSET=utf8mb4;
 

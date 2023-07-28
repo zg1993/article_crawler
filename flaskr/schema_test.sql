@@ -9,18 +9,31 @@ CREATE TABLE IF NOT EXISTS test(
   tsp TIMESTAMP NOT NULL,
   content MEDIUMTEXT,
   js json NOT NULL,
+  UNIQUE KEY `title` (`title`),
   PRIMARY KEY (`id`)
 ) DEFAULT CHARSET=utf8mb4;
 
 -- alter table task drop `source`;
 
 -- 添加字段 更新代码先执行
-ALTER TABLE task add `source` VARCHAR(50) character set utf8mb4 NOT NULL DEFAULT '微信公众号';
+-- ALTER TABLE task add `source` VARCHAR(50) character set utf8mb4 NOT NULL DEFAULT '微信公众号'; 
 -- 修改article topic字段类型建立外键链接
-alter table article modify column `topic` INT DEFAULT 1;
-alter table article add constraint FK_ID foreign key (topic) references task (id) on delete set null;
+-- alter table article modify column `topic` INT DEFAULT 1;
+-- alter table article add constraint FK_ID foreign key (topic) references task (id) on delete set null;
 -- 提交extracted_from文章摘自
-alter table article add `extracted_from` VARCHAR(50) character set utf8mb4 DEFAULT '';
+-- alter table article add `extracted_from` VARCHAR(50) character set utf8mb4 DEFAULT '';
+-- task 添加unique约束
+alter table task add unique(name)
+
+-- test 添加delete_time
+-- alter table task drop `delete_time`
+alter table task add `last_execute_time` DATETIME;
+alter table task add `execute_status` SMALLINT DEFAULT 1;
+alter table task add `start_time` VARCHAR(20) DEFAULT '';
+alter table task add `end_time` VARCHAR(20) DEFAULT '';
+
+
+
 
 -- test
 -- alter table test drop `delete_time`

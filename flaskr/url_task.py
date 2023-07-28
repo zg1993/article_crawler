@@ -34,8 +34,11 @@ def add_task():
         with db.auto_commit_db():
             db.session.add(task)
     except Exception as e:
+        msg = str(e)
         res = False
-        msg = e
+        if 'Duplicate' in msg:
+            msg = '专题名称不能重复'
+        # msg = str(e)
     return {
         'code': 200,
         'resultCode': '',

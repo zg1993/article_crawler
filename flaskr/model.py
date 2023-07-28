@@ -1,6 +1,7 @@
 from .db import db
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 from flask import current_app
+from sqlalchemy import func
 
 
 class Book(db.Model):  # 让Book 继承基类的模型
@@ -12,13 +13,17 @@ class Book(db.Model):  # 让Book 继承基类的模型
 class Task(db.Model):
     __tablename__ = 'task'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
-    name = db.Column(db.String(50), nullable=False)
+    name = db.Column(db.String(50), unique=True, nullable=False)
     official_accounts = db.Column(db.JSON, nullable=False)
     search_keys = db.Column(db.JSON, nullable=False)
     delta = db.Column(db.Integer, nullable=False, default=0)
     period = db.Column(db.String(20), nullable=False, default='23:50')
     status = db.Column(db.SMALLINT, nullable=False, default=0)
     source = db.Column(db.String(50), nullable=False, default='微信公众号')
+    last_execute_time = db.Column(db.DateTime, nullable=True)
+    execute_status = db.Column(db.SmallInteger,default=1)
+    start_time = db.Column(db.String(20), default='')
+    end_time = db.Column(db.String(20), default='')
     # delete_time=db.Column(db.String(20), nullable=True)
 
     def __repr__(self):
@@ -29,6 +34,8 @@ class Task(db.Model):
         for key in dir(self):
             if not key.startswith('_') and isinstance(getattr(self.__class__, key), InstrumentedAttribute):
                 res[key] = getattr(self, key)
+            if 'last_execute_time' == key and getattr(self, key):
+                res['last_execute_time'] = getattr(self, key).strftime('%Y-%m-%d %H:%M:%S')
         return res
     
 
@@ -77,7 +84,19 @@ class Test(db.Model):
     
     id = db.Column(db.Integer, primary_key=True, autoincrement=True, nullable=False)
     update_time = db.Column(db.Integer, nullable=False)
+    title = db.Column(db.String(200),unique=True, nullable=False)
     tsp = db.Column(db.TIMESTAMP, nullable=False)
     content = db.Column(db.Text(65536), nullable=True)
     js = db.Column(db.JSON, nullable=False)
     delete_time = db.Column(db.DateTime, nullable=True)
+
+
+    def to_json(self):
+        res = {}
+        for key in dir(self):
+            if not key.startswith('_') and isinstance(getattr(self.__class__, key), InstrumentedAttribute):
+                res[key] = getattr(self, key)
+            if 'delete_time' == key and getattr(self, key):
+                res['delete_time'] = getattr(self, key).strftime('%Y-%m-%d %H:%M:%S')
+        # res['update_time'] = res['update_time'] * 1000
+        return res

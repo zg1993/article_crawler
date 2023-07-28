@@ -20,3 +20,5 @@ class SourceType():
     SOGOU = '搜狗微信'
 
 SNUID_KEY = 'crawler:snuid'
+
+TASK_SET_KEY = 'crawler:task_set'
