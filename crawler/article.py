@@ -497,7 +497,7 @@ if __name__ == '__main__':
                       minute=55,
                       args=[db_cli, redis_cli])
     scheduler.add_job(start_now, 'interval', minutes=5, args=[db_cli, redis_cli])
-    scheduler.add_job(test, 'interval', minutes=30)
+    # scheduler.add_job(test, 'interval', minutes=30)
     if len(sys.argv) == 2:
         my_clock(db_cli, redis_cli)
     # scheduler.add_job(my_clock, 'interval', seconds=6, args=[db_cli, redis_cli])

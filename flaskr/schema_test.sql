@@ -23,8 +23,7 @@ CREATE TABLE IF NOT EXISTS test(
 -- 提交extracted_from文章摘自
 -- alter table article add `extracted_from` VARCHAR(50) character set utf8mb4 DEFAULT '';
 -- task 添加unique约束
-alter table task add unique(name)
-
+alter table task add unique(name);
 -- test 添加delete_time
 -- alter table task drop `delete_time`
 alter table task add `last_execute_time` DATETIME;
