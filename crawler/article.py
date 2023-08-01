@@ -62,10 +62,10 @@ def cal_date_cookies(redis_cli):
     timestamp = timestamp + 60 * 60 * 24 * 4
     return timestamp_to_str(timestamp)
 
-def get_token1(redis_cli):
+def get_token1(cookies):
     import requests
     global g_headers
-    cookies = load_cookies(redis_cli.get(COOKEIS_KEY))
+    # cookies = load_cookies(redis_cli.get(COOKEIS_KEY))
     # app_log = current_app.logger
     url = 'https://mp.weixin.qq.com'
     res = requests.Session().get(url=url,
@@ -384,7 +384,7 @@ async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
     search_key_fakeid = get_search_key_fakeid(redis_cli,
                                               official_accounts_list)
     async with aiohttp.ClientSession() as session:
-        g_token = get_token1(redis_cli)
+        g_token = get_token1(g_cookies)
         if not g_token:
             app_log.info('cookies expired')
             # update = kwargs.get('update')
