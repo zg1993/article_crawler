@@ -72,6 +72,7 @@ def check_cookies():
     try:
         redis_cli = current_app.extensions['redis']
         res = get_token1(redis_cli)
+        current_app.logger.info(res)
         date = cal_date_cookies(redis_cli)
         return jsonify({
             'code': 200,
@@ -82,7 +83,7 @@ def check_cookies():
             'success': True
         })
     except Exception as e:
-        return jsonify({'code': 500, 'res': e})
+        return jsonify({'code': 200, 'res': str(e), 'msg': '请联系管理员', 'success': True})
 
 
 @bp.route('/start_now')
