@@ -14,6 +14,7 @@ from crawler.parse_html import parse_wexin_article
 from crawler.utils import app_log
 from crawler.aiohttp_fetch import fetch
 from crawler.sogou import main as sogou
+from crawler.toutiao import main as toutiao
 from common.const import SourceType, TASK_SET_KEY
 from pprint import pprint
 # flaskr
@@ -46,10 +47,10 @@ g_redis = None
 g_count = 20
 
 
-def load_cookies(cookei_str):
+def load_cookies(cookie_str):
     cookies = {}
     prog = re.compile(r'\s?(?P<key>.*?)=(?P<val>.*)\s?')
-    for item in cookei_str.split(';'):
+    for item in cookie_str.split(';'):
         key, val = prog.match(item).groups()
         cookies[key] = val
         # if 'pgv_pvid' == key:
@@ -218,7 +219,7 @@ async def fetch_articles_minunit(session, fakeid, official_account, headers,
                 article['extracted_from'] = official_account
                 results.append(article)
 
-    app_log.info('{0} {1}-{2}: {3}'.format(now_str, fakeid, search_key,
+    app_log.info('{0} {1}-{2}: {3}'.format(start_time, fakeid, search_key,
                                            len(results)))
     return results
 
@@ -314,6 +315,20 @@ def get_fakeid_dict(redis_cli, arr):
         res[detail['fakeid']] = name
     return res
 
+async def crawler_toutiao(task, db, now_str, redis_cli, **kwargs):
+    filters = [Task.id == task.get('id')]
+    async with aiohttp.ClientSession() as session:
+        insert_arr = await toutiao(now_str, task['search_keys'], redis_cli, **kwargs)
+        if insert_arr is None:
+            app_log.info('toutiao insert is None')
+            execute_update(db, filters, {'execute_status': -1})
+            return
+        task = []
+        for article in insert_arr:
+            article['topic'] = task['id']
+        execute_insert(db, insert_arr)
+        execute_update(db, filters, {'execute_status': 1, 'last_execute_time': now_str})
+
 async def crawler_sogou(task, db, now_str, redis_cli, **kwargs):
     filters = [Task.id == task.get('id')]
     async with aiohttp.ClientSession() as session:
@@ -343,7 +358,8 @@ async def execute_task(task, db, redis_cli, now_str, **kwargs):
         await task_unit(now_str, task, db, redis_cli, **kwargs)
     elif SourceType.SOGOU == source:
         await crawler_sogou(task, db, now_str, redis_cli,**kwargs)
-    
+    elif SourceType.TOUTIAO == source:
+        await crawler_toutiao(task, db, now_str, redis_cli, **kwargs)
 
 async def main(db=None, redis_cli=None, filters=[], update=False):
     now_str = get_time_now()
