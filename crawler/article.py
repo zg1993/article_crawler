@@ -388,7 +388,7 @@ async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
     insert_data = []
     filters = [Task.id == task.get('id')]
     # 从redis里取 g_cookie_str
-    g_cookie_str = redis_cli.get(COOKEIS_KEY)
+    
     official_accounts_list = task.get('official_accounts', g_search_key)
     search_keys = task.get('search_keys', [])
     delta = task.get('delta', 0)
@@ -477,7 +477,9 @@ def handle_duplicate_key(db, insert_data):
 
 
 def my_clock(db_cli, redis_cli):
-    print('start: {}'.format(datetime.now()))
+    global g_cookie_str
+    g_cookie_str = redis_cli.get(COOKEIS_KEY)
+    app_log.info('start: {0} {1}'.format(datetime.now(), g_cookie_str))
     # with flask_app.app_context():
     #     res = Task.query.filter(Task.status==1).all()
     #     task_arr = [i.to_json() for i in res]
@@ -488,6 +490,9 @@ def my_clock(db_cli, redis_cli):
 
 def start_now(db_cli, redis_cli):
     # app_log.info(datetime.now())
+    global g_cookie_str
+    g_cookie_str = redis_cli.get(COOKEIS_KEY)
+    app_log.info('start: {0} {1}'.format(datetime.now(), g_cookie_str))
     filters = [Task.execute_status == 0]
     asyncio.run(main(db_cli, redis_cli, filters, update=True))
     # asyncio.run()
@@ -496,6 +501,24 @@ def test():
     import requests
     res = requests.get('http://192.168.110.240:3000/crawler/func/check_cookies')
     app_log.info(res.text)
+
+async def main1(db_cli, redis_cli):
+    global g_cookie_str
+    g_cookie_str = redis_cli.get(COOKEIS_KEY)
+    app_log.info('start: {0} {1}'.format(datetime.now(), g_cookie_str))
+    g_cookies = load_cookies(g_cookie_str)
+    app_log.info(g_cookies)
+    async with aiohttp.ClientSession() as session:
+        g_token = get_token1(g_cookies)
+        if not g_token:
+            app_log.info('cookies expired')
+            # update = kwargs.get('update')
+            # if update:
+            return
+        app_log.info('success')
+
+def my_clock1(db_cli, redis_cli):
+    asyncio.run(main1(db_cli, redis_cli))
 
 
 if __name__ == '__main__':
@@ -516,5 +539,5 @@ if __name__ == '__main__':
     # scheduler.add_job(test, 'interval', minutes=30)
     if len(sys.argv) == 2:
         my_clock(db_cli, redis_cli)
-    # scheduler.add_job(my_clock, 'interval', seconds=6, args=[db_cli, redis_cli])
+    # scheduler.add_job(my_clock1, 'interval', seconds=20, args=[db_cli, redis_cli])
     scheduler.start()

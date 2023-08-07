@@ -7,8 +7,6 @@ import asyncio
 import aiohttp
 import requests
 from datetime import datetime
-
-from crawler.article import load_cookies
 from crawler.parse_html import parse_toutian_pages, parse_toutian_article
 from crawler.utils import str_to_timestamp, get_time_now, app_log
 from crawler.aiohttp_fetch import fetch
@@ -18,6 +16,7 @@ cookie_str = 'tt_webid=7256623115072669244; _ga=GA1.1.1342661671.1689564238; _S_
 
 
 def test():
+    from crawler.article import load_cookies
     cookie = load_cookies(cookie_str)
     headers = {
         'User-Agent':
