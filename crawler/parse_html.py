@@ -49,6 +49,7 @@ def link_sogou_analysis(href: str):
 
 def parse_toutian_article(html_text):
     try:
+        
         soup = BeautifulSoup(html_text, 'lxml')
         link_element = soup.find('link', rel='canonical')
         link = ''
@@ -57,6 +58,13 @@ def parse_toutian_article(html_text):
             link = link_element.get('href')
             aid = link.split('/')[-2]
         article_content = soup.find('div', class_='article-content')
+        pgc_imgs = article_content.find_all('div', class_='pgc-img')
+        for pgc_img in pgc_imgs:
+            pass
+            # pgc_img['style'] = 'text-align: center'
+        imgs = article_content.find_all('img')
+        for img in imgs:
+            img['referrerPolicy'] = 'same-origin'
         title = article_content.find('h1').text
         artilce_meta_list = article_content.select_one('.article-meta').find_all('span')
         for span in artilce_meta_list:
@@ -88,6 +96,7 @@ def parse_toutian_pages(html_text) -> list:
             'div', class_='result-content')
         app_log.info(len(li_list))
         for li in li_list:
+            app_log.info(li)
             if li.get('data-i') is not None:
                 # app_log.info(li)
                 title_element = li.find(
@@ -95,16 +104,17 @@ def parse_toutian_pages(html_text) -> list:
                     class_=
                     'flex-1 text-darker text-xl text-medium d-flex align-items-center overflow-hidden'
                 ).find('a')
-                title = title_element.text
-                link = 'https://so.toutiao.com' + title_element.get('href')
                 img_element = li.find('img')
-                if img_element:
+                if title_element and img_element:
                     cover = img_element.get('src')
+                    title = title_element.text
+                    link = 'https://so.toutiao.com' + title_element.get('href')
                     res.append({
                         'link': link,
                         'title': title,
                         'cover': cover
                     })
+        # app_log.info(res)
         return res
     except Exception as e:
         app_log.error(e)
