@@ -14,9 +14,11 @@ from crawler.parse_html import parse_wexin_article
 from crawler.utils import app_log
 from crawler.aiohttp_fetch import fetch
 from crawler.sogou import main as sogou
+from crawler.carbon_market import main as carbon_func
 from crawler.toutiao import main as toutiao
 from common.const import SourceType, TASK_SET_KEY
 from pprint import pprint
+import requests
 # flaskr
 
 from sqlalchemy import func
@@ -57,11 +59,13 @@ def load_cookies(cookie_str):
         #     cookies[key] = urllib.parse.unquote(val)\\
     return cookies
 
+
 def cal_date_cookies(redis_cli):
     clsk = load_cookies(redis_cli.get(COOKEIS_KEY)).get('_clsk', '')
     timestamp = int(clsk.split('|')[1]) / 1000
     timestamp = timestamp + 60 * 60 * 24 * 4
     return timestamp_to_str(timestamp)
+
 
 def get_token1(cookies):
     import requests
@@ -74,7 +78,6 @@ def get_token1(cookies):
                                  cookies=cookies,
                                  verify=False)
     return re.findall(r'.*?token=(\d+)', res.url)
-    
 
 
 def print_dict(d):
@@ -170,7 +173,8 @@ async def fetch_multi_articles_by_counts(session,
 
 
 async def fetch_articles_minunit(session, fakeid, official_account, headers,
-                                 cookies, token, search_key, now_str, **kwargs):
+                                 cookies, token, search_key, now_str,
+                                 **kwargs):
     # count_article = 0
     begin = 0
     results = []
@@ -231,8 +235,9 @@ async def fetch_multi_articles_unit(session,
                                     token,
                                     now_str,
                                     article_search_key=[],
-                                    delta=0, **kwargs):
-    if delta or not now_str:                                   
+                                    delta=0,
+                                    **kwargs):
+    if delta or not now_str:
         now_str = get_time_now(delta=delta)
     results = []
     if not len(article_search_key):
@@ -315,10 +320,12 @@ def get_fakeid_dict(redis_cli, arr):
         res[detail['fakeid']] = name
     return res
 
+
 async def crawler_toutiao(task, db, now_str, redis_cli, **kwargs):
     filters = [Task.id == task.get('id')]
     async with aiohttp.ClientSession() as session:
-        insert_arr = await toutiao(now_str, task['search_keys'], redis_cli, **kwargs)
+        insert_arr = await toutiao(now_str, task['search_keys'], redis_cli,
+                                   **kwargs)
         if insert_arr is None:
             app_log.info('toutiao insert is None')
             execute_update(db, filters, {'execute_status': -1})
@@ -327,12 +334,19 @@ async def crawler_toutiao(task, db, now_str, redis_cli, **kwargs):
         for article in insert_arr:
             article['topic'] = task['id']
         execute_insert(db, insert_arr)
-        execute_update(db, filters, {'execute_status': 1, 'last_execute_time': now_str})
+        execute_update(db, filters, {
+            'execute_status': 1,
+            'last_execute_time': now_str
+        })
+
 
 async def crawler_sogou(task, db, now_str, redis_cli, **kwargs):
     filters = [Task.id == task.get('id')]
     async with aiohttp.ClientSession() as session:
-        insert_arr = await sogou(now_str, task['search_keys'], redis_cli=redis_cli, **kwargs)
+        insert_arr = await sogou(now_str,
+                                 task['search_keys'],
+                                 redis_cli=redis_cli,
+                                 **kwargs)
         if insert_arr is None:
             app_log.info('sogou insert is None')
             execute_update(db, filters, {'execute_status': -1})
@@ -346,20 +360,26 @@ async def crawler_sogou(task, db, now_str, redis_cli, **kwargs):
         res = await asyncio.gather(*tasks)
         for index, content in enumerate(res):
             if content is None:
-                print('content is None: {}'.format(insert_arr[index].get('link', '--')))
+                print('content is None: {}'.format(insert_arr[index].get(
+                    'link', '--')))
             insert_arr[index]['content'] = content
             # print(arr[index]['title'], len(content), type(content))
         execute_insert(db, insert_arr)
-        execute_update(db, filters, {'execute_status': 1, 'last_execute_time': now_str})
+        execute_update(db, filters, {
+            'execute_status': 1,
+            'last_execute_time': now_str
+        })
+
 
 async def execute_task(task, db, redis_cli, now_str, **kwargs):
     source = task['source']
     if SourceType.WEIXIN == source:
         await task_unit(now_str, task, db, redis_cli, **kwargs)
     elif SourceType.SOGOU == source:
-        await crawler_sogou(task, db, now_str, redis_cli,**kwargs)
+        await crawler_sogou(task, db, now_str, redis_cli, **kwargs)
     elif SourceType.TOUTIAO == source:
         await crawler_toutiao(task, db, now_str, redis_cli, **kwargs)
+
 
 async def main(db=None, redis_cli=None, filters=[], update=False):
     now_str = get_time_now()
@@ -372,14 +392,22 @@ async def main(db=None, redis_cli=None, filters=[], update=False):
         #     task_arr = [i for i in task_arr if i.get('execute_status') == 0]
 
         for task in task_arr:
-            start_time=task.get('start_time')
-            end_time=task.get('end_time')
+            start_time = task.get('start_time')
+            end_time = task.get('end_time')
             ID = task.get('id')
             if not update:
                 await execute_task(task, db, redis_cli, now_str, update=update)
             elif update and redis_cli.srem(TASK_SET_KEY, ID):
-                app_log.info(f'execute start now task {task.get("name")}: {start_time}-{end_time}')
-                await execute_task(task, db, redis_cli, now_str, start_time=start_time, end_time=end_time, update=update)
+                app_log.info(
+                    f'execute start now task {task.get("name")}: {start_time}-{end_time}'
+                )
+                await execute_task(task,
+                                   db,
+                                   redis_cli,
+                                   now_str,
+                                   start_time=start_time,
+                                   end_time=end_time,
+                                   update=update)
 
 
 async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
@@ -388,7 +416,7 @@ async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
     insert_data = []
     filters = [Task.id == task.get('id')]
     # 从redis里取 g_cookie_str
-    
+
     official_accounts_list = task.get('official_accounts', g_search_key)
     search_keys = task.get('search_keys', [])
     delta = task.get('delta', 0)
@@ -423,7 +451,8 @@ async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
             g_token,
             now_str,
             article_search_key=search_keys,
-            delta=delta, **kwargs)
+            delta=delta,
+            **kwargs)
         print('article sum: {}'.format(len(articles_arr)))
         result = handle_articles_arr(articles_arr, topic)
         print('remove duplicates article sum: {}'.format(len(result)))
@@ -435,14 +464,36 @@ async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
                                   arr))  # drop content is None
         # print('arr', arr)
     execute_insert(db, insert_data)
-    execute_update(db, filters, {'execute_status': 1, 'last_execute_time': now_str})
+    execute_update(db, filters, {
+        'execute_status': 1,
+        'last_execute_time': now_str
+    })
+    app_log.info(task['name'])
+    if '全国碳交易信息' in task['name'] and os.environ.get('REQUEST_MODE') != 'dev':
+        url = 'https://tphlb.fzyjszx.com/dualcarbon-api/ylkj-portal/api/v1/announce'
+        for i in insert_data:
+            announce_data = {
+                "announceId": "",
+                "announceContent": i.get('content'),
+                "marketSegment": "QG",
+                "announceTitle": i.get('title'),
+                "announceType": "3",
+                "announceSource": "无",
+                "interfaceType": "python"
+            }
+            common_requests(url, announce_data)
+            # 发布
+            # url_publish = 'https://tphlb.fzyjszx.com/dualcarbon-api/ylkj-portal/api/v1/announce/edit'
+            # publish_data = {
+            # }
+
 
 def execute_insert(db, insert_data):
-     if db:
+    if db:
         with current_app.app_context():
             try:
                 start_time = time.time()
-                # return 
+                # return
                 with db.auto_commit_db():
                     db.session.bulk_insert_mappings(Article, insert_data)
                 app_log.info('insert {0} data, spend {1} seconds'.format(
@@ -453,6 +504,7 @@ def execute_insert(db, insert_data):
                 app_log.info(e)
                 handle_duplicate_key(db, insert_data)
 
+
 def execute_update(db, filters, value):
     with current_app.app_context():
         try:
@@ -461,6 +513,7 @@ def execute_update(db, filters, value):
                 app_log.info(res)
         except Exception as e:
             app_log.error(e)
+
 
 def handle_duplicate_key(db, insert_data):
     print('--start-duplicate {}'.format(len(insert_data)))
@@ -488,6 +541,7 @@ def my_clock(db_cli, redis_cli):
     asyncio.run(main(db_cli, redis_cli, filters))
     # print('end: {}'.format(datetime.now()))
 
+
 def start_now(db_cli, redis_cli):
     # app_log.info(datetime.now())
     global g_cookie_str
@@ -497,10 +551,13 @@ def start_now(db_cli, redis_cli):
     asyncio.run(main(db_cli, redis_cli, filters, update=True))
     # asyncio.run()
 
+
 def test():
     import requests
-    res = requests.get('http://192.168.110.240:3000/crawler/func/check_cookies')
+    res = requests.get(
+        'http://192.168.110.240:3000/crawler/func/check_cookies')
     app_log.info(res.text)
+
 
 async def main1(db_cli, redis_cli):
     global g_cookie_str
@@ -517,8 +574,31 @@ async def main1(db_cli, redis_cli):
             return
         app_log.info('success')
 
+
 def my_clock1(db_cli, redis_cli):
     asyncio.run(main1(db_cli, redis_cli))
+
+
+def common_requests(url, data):
+    app_log.info(url)
+    app_log.info(data)
+    headers = {'Content-Type': 'application/json'}
+    response = requests.post(url=url, data=json.dumps(data), headers=headers)
+    app_log.info(response.status_code)
+    app_log.info(response.json())
+    return response.json()
+
+
+async def carbon(db_cli):
+    data = await carbon_func()
+    app_log.info(data)
+    url = 'https://tphlb.fzyjszx.com/dualcarbon-api/ylkj-portal/api/v1/market-conditions'
+    if os.environ.get('REQUEST_MODE') != 'dev':
+        common_requests(url, data)
+
+
+def carbon_market(db_cli):
+    asyncio.run(carbon(db_cli))
 
 
 if __name__ == '__main__':
@@ -535,7 +615,12 @@ if __name__ == '__main__':
                       hour=23,
                       minute=55,
                       args=[db_cli, redis_cli])
-    scheduler.add_job(start_now, 'interval', minutes=5, args=[db_cli, redis_cli])
+    scheduler.add_job(start_now,
+                      'interval',
+                      minutes=5,
+                      args=[db_cli, redis_cli])
+    scheduler.add_job(carbon_market, 'cron', hour=23, minute=0, args=[db_cli])
+    app_log.info(os.environ.get('REQUEST_MODE'))
     # scheduler.add_job(test, 'interval', minutes=30)
     if len(sys.argv) == 2:
         my_clock(db_cli, redis_cli)

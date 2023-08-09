@@ -47,9 +47,10 @@ def link_sogou_analysis(href: str):
 # def get_sogou_link(href: str):
 #     pass
 
+
 def parse_toutian_article(html_text):
     try:
-        
+
         soup = BeautifulSoup(html_text, 'lxml')
         link_element = soup.find('link', rel='canonical')
         link = ''
@@ -66,14 +67,16 @@ def parse_toutian_article(html_text):
         for img in imgs:
             img['referrerPolicy'] = 'same-origin'
         title = article_content.find('h1').text
-        artilce_meta_list = article_content.select_one('.article-meta').find_all('span')
+        artilce_meta_list = article_content.select_one(
+            '.article-meta').find_all('span')
         for span in artilce_meta_list:
             if not span.get('class'):
                 date_str = span.text
                 update_time = str_to_timestamp(date_str, '%Y-%m-%d %H:%M')
                 break
         extracted_from = article_content.select_one('.article-meta>.name').text
-        content_element = article_content.find('article', class_='tt-article-content')
+        content_element = article_content.find('article',
+                                               class_='tt-article-content')
         content = content_element.prettify()
         return {
             'update_time': update_time,
@@ -109,18 +112,13 @@ def parse_toutian_pages(html_text) -> list:
                     cover = img_element.get('src')
                     title = title_element.text
                     link = 'https://so.toutiao.com' + title_element.get('href')
-                    res.append({
-                        'link': link,
-                        'title': title,
-                        'cover': cover
-                    })
+                    res.append({'link': link, 'title': title, 'cover': cover})
         # app_log.info(res)
         return res
     except Exception as e:
         app_log.error(e)
         print(html_text)
         return []
-        
 
 
 def parse_sougou_pages(html_text) -> list:
@@ -147,6 +145,54 @@ def parse_sougou_pages(html_text) -> list:
     except Exception as e:
         print(e)
         print(html_text)
+
+
+def parse_carbon_market(html_text):
+    try:
+        res = []
+        soup = BeautifulSoup(html_text, 'lxml')
+        articles = soup.find_all('article', class_='blog-single-wrap mb-40')
+        for article in articles:
+            title = article.find('h3', class_='blog-wrap-title')
+            if '碳行情' in title.text:
+                table = article.find('table',
+                                     class_='table table-hover text-center')
+                tds = table.find('tbody').find('tr').find_all('td')
+                # trs = table.find('tbody').find_all('tr')
+                # for tr in trs:
+                # tds = tr.find_all('td')
+                nowDate, openPrice, closePrice, hightPrice, lowPrice, chg, turnover, transactionAmount, _ = [
+                    td.text.replace(',', '') for td in tds
+                ]
+                nowDate = f'{nowDate} 00:00:00'
+                openPrice = float(openPrice)
+                closePrice = float(closePrice)
+                hightPrice = float(hightPrice)
+                lowPrice = float(lowPrice)
+                chg = float(chg.strip('%'))
+                turnover = float(turnover)
+                transactionAmount = float(transactionAmount)
+                chg_value = chg
+                riseAndFall = round(
+                    (closePrice * chg_value) / (100 + chg_value), 2)
+                # print(nowDate, openPrice, closePrice, hightPrice, lowPrice,
+                #   chg, turnover, transactionAmount, riseAndFall)
+                element = {
+                    'nowDate': nowDate,
+                    'openPrice': openPrice,
+                    'closePrice': closePrice,
+                    'hightPrice': hightPrice,
+                    'lowPrice': lowPrice,
+                    'chg': chg,
+                    'turnover': turnover,
+                    'transactionAmount': transactionAmount,
+                    'riseAndFall': riseAndFall,
+                     "marketSegment":"QG"
+                }
+                return element
+                # return res
+    except Exception as e:
+        app_log.info(e)
 
 
 def parse_wexin_article_(html_text):
