@@ -162,7 +162,7 @@ def parse_carbon_market_gz(html_text, marketSegment, **kwargs):
                 riseAndFall, chg, turnover, transactionAmount
             ] = [re.compile(r'\s').sub('', td.text) for td in tds]
             # print(type(nowDate))
-            nowDate = datetime.strptime(nowDate, '%Y%m%d').strftime('%Y-%m-%d')
+            nowDate = datetime.strptime(nowDate, '%Y%m%d').strftime('%Y-%m-%d %H:%M:%S')
             # print(nowDate)
             element = {
                 'nowDate': nowDate,
@@ -178,6 +178,104 @@ def parse_carbon_market_gz(html_text, marketSegment, **kwargs):
             }
             return element
 
+    except Exception as e:
+        app_log.info(e)
+
+
+def parse_carbon_market_hb(html_text, marketSegment, **kwargs):
+    try:
+        res = []
+        soup = BeautifulSoup(html_text, 'lxml')
+        uls = soup.find('div', class_='future_table').find_all('ul',
+                                                               class_='cont')
+        if datetime.now().strftime('%H:%M') > "17:00":
+            ul = uls[0]
+        else:
+            ul = uls[1]
+        lis = ul.find_all('li')
+        [
+            _, nowDate, closePrice, chg, hightPrice, lowPrice, turnover,
+            transactionAmount, openPrice
+        ] = [re.compile(r'\s').sub('', li.text) for li in lis]
+        chg = float(chg.strip('%'))
+        riseAndFall = round((float(closePrice) * chg) / (100 + chg), 2)
+        element = {
+            'nowDate': f'{nowDate} 00:00:00',
+            'openPrice': float(openPrice),
+            'closePrice': float(closePrice),
+            'hightPrice': float(hightPrice),
+            'lowPrice': float(lowPrice),
+            'chg': chg,
+            'turnover': float(turnover),
+            'transactionAmount': float(transactionAmount),
+            'riseAndFall': float(riseAndFall),
+            "marketSegment": marketSegment
+        }
+
+        return element
+    except Exception as e:
+        app_log.info(e)
+
+def parse_carbon_market_sz(response, marketSegment, **kwargs):
+    # 深圳没有涨跌幅度，成交均价等于收盘价格
+    try:
+        res = []
+        content_arr = response['data']['content']
+        data, last_data = content_arr
+        riseAndFall = round(float(data['dailyClosingPrice']) - float(last_data['dailyClosingPrice']), 2)
+        chg = (riseAndFall / float(last_data['dailyClosingPrice'])) * 100
+        element = {
+            'nowDate': data['tradeDate'],
+            'openPrice': float(data['dailyOpeningPrice']),
+            'closePrice': float(data['dailyClosingPrice']),
+            'hightPrice': float(data['dailyHighestPrice']),
+            'lowPrice': float(data['dailyLowestPrice']),
+            'chg': round(chg, 2),
+            'turnover': float(data['sumAmount']),
+            'transactionAmount': float(data['sumPrice']),
+            'riseAndFall': riseAndFall,
+            "marketSegment": marketSegment
+        }
+
+        return element
+    except Exception as e:
+        app_log.info(e)
+
+def parse_carbon_market_bj(html_text, marketSegment, **kwargs):
+    try:
+        res = []
+        soup = BeautifulSoup(html_text, 'lxml')
+        trs = soup.find('table').find_all('tr')
+        today = [td.text.strip() for td in trs[1].find_all('td')]
+        yesterday = [td.text.strip() for td in trs[2].find_all('td')]
+        print(today)
+        print(yesterday)
+        nowDate, turnover, average_price, transactionAmount = today
+        last_average_price = float(yesterday[2])
+        turnover = float(turnover)
+        average_price = float(average_price)
+        transactionAmount = float(transactionAmount.replace(',', '')[:-6])
+        print(last_average_price)
+        print(nowDate)
+        print(turnover)
+        print(average_price)
+        print(transactionAmount)
+        closePrice = openPrice = hightPrice = lowPrice = average_price
+        riseAndFall = round(average_price - last_average_price, 2)
+        chg = (riseAndFall / last_average_price) * 100
+        element = {
+            'nowDate': f'{nowDate} 00:00:00',
+            'openPrice': openPrice,
+            'closePrice': closePrice,
+            'hightPrice': hightPrice,
+            'lowPrice': lowPrice,
+            'chg': round(chg, 2),
+            'turnover': turnover,
+            'transactionAmount': transactionAmount,
+            'riseAndFall': riseAndFall,
+            "marketSegment": marketSegment
+        }
+        return element
     except Exception as e:
         app_log.info(e)
 
