@@ -5,6 +5,8 @@ import requests
 from .utils import write_file, str_to_timestamp, app_log
 import math
 import random
+from datetime import datetime
+import re
 
 
 def parse_wexin_article(html_text):
@@ -147,7 +149,40 @@ def parse_sougou_pages(html_text) -> list:
         print(html_text)
 
 
-def parse_carbon_market(html_text):
+def parse_carbon_market_gz(html_text, marketSegment, **kwargs):
+    try:
+        res = []
+        soup = BeautifulSoup(html_text, 'lxml')
+        trs = soup.select_one('table[id="mytable"]').find_all('tr')
+        for tr in trs[1:]:
+            tds = tr.find_all('td')
+            # print(tds)
+            [
+                nowDate, _, openPrice, closePrice, hightPrice, lowPrice,
+                riseAndFall, chg, turnover, transactionAmount
+            ] = [re.compile(r'\s').sub('', td.text) for td in tds]
+            # print(type(nowDate))
+            nowDate = datetime.strptime(nowDate, '%Y%m%d').strftime('%Y-%m-%d')
+            # print(nowDate)
+            element = {
+                'nowDate': nowDate,
+                'openPrice': float(openPrice),
+                'closePrice': float(closePrice),
+                'hightPrice': float(hightPrice),
+                'lowPrice': float(lowPrice),
+                'chg': float(chg.strip('%')),
+                'turnover': float(turnover),
+                'transactionAmount': float(transactionAmount),
+                'riseAndFall': float(riseAndFall),
+                "marketSegment": marketSegment
+            }
+            return element
+
+    except Exception as e:
+        app_log.info(e)
+
+
+def parse_carbon_market(html_text, marketSegment):
     try:
         res = []
         soup = BeautifulSoup(html_text, 'lxml')
@@ -187,7 +222,7 @@ def parse_carbon_market(html_text):
                     'turnover': turnover,
                     'transactionAmount': transactionAmount,
                     'riseAndFall': riseAndFall,
-                     "marketSegment":"QG"
+                    "marketSegment": marketSegment
                 }
                 return element
                 # return res

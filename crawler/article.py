@@ -16,7 +16,7 @@ from crawler.aiohttp_fetch import fetch
 from crawler.sogou import main as sogou
 from crawler.carbon_market import main as carbon_func
 from crawler.toutiao import main as toutiao
-from common.const import SourceType, TASK_SET_KEY
+from common.const import SourceType, TASK_SET_KEY, CARBON_MARKET
 from pprint import pprint
 import requests
 # flaskr
@@ -589,16 +589,24 @@ def common_requests(url, data):
     return response.json()
 
 
-async def carbon(db_cli):
-    data = await carbon_func()
+async def carbon(redis_cli):
+    data: list = await carbon_func()
     app_log.info(data)
-    url = 'https://tphlb.fzyjszx.com/dualcarbon-api/ylkj-portal/api/v1/market-conditions'
-    if os.environ.get('REQUEST_MODE') != 'dev':
-        common_requests(url, data)
+    if os.environ.get('REQUEST_MODE') != 'dev' and data:
+    # if os.environ.get('REQUEST_MODE') == 'dev' and data:
+        url = 'https://tphlb.fzyjszx.com/dualcarbon-api/ylkj-portal/api/v1/market-conditions'
+        for i in data:
+            marketSegment = i.get('marketSegment')
+            nowDate = i.get('nowDate')
+            redis_key = CARBON_MARKET + marketSegment
+            time_str = redis_cli.getset(redis_key, nowDate)
+            app_log.info(f'{time_str} {nowDate}')
+            if time_str != nowDate:
+                common_requests(url, i)
 
 
-def carbon_market(db_cli):
-    asyncio.run(carbon(db_cli))
+def carbon_market(redis_cli):
+    asyncio.run(carbon(redis_cli))
 
 
 if __name__ == '__main__':
@@ -619,8 +627,8 @@ if __name__ == '__main__':
                       'interval',
                       minutes=5,
                       args=[db_cli, redis_cli])
-    scheduler.add_job(carbon_market, 'cron', hour=23, minute=0, args=[db_cli])
-    app_log.info(os.environ.get('REQUEST_MODE'))
+    scheduler.add_job(carbon_market, 'cron', hour=23, minute=0, args=[redis_cli])
+    # scheduler.add_job(carbon_market, 'interval', minutes=1, args=[redis_cli])
     # scheduler.add_job(test, 'interval', minutes=30)
     if len(sys.argv) == 2:
         my_clock(db_cli, redis_cli)

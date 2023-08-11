@@ -20,8 +20,12 @@ class SourceType():
     SOGOU = '搜狗微信'
     TOUTIAO = '今日头条'
 
+
+
 SNUID_KEY = 'crawler:snuid'
 
 TASK_SET_KEY = 'crawler:task_set'
 
 TOUTIAO_COOKIE = 'crawler:toutiaocookie'
+
+CARBON_MARKET = 'crawler:carbon_market'
