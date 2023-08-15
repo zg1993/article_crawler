@@ -413,6 +413,7 @@ async def main(db=None, redis_cli=None, filters=[], update=False):
 async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
     # test
     global g_token, g_headers, g_cookies, g_search_key, g_cookie_str
+    app_log.info('task_unit: {0} {1}'.format(g_cookies.get('_clsk'), g_cookie_str))
     insert_data = []
     filters = [Task.id == task.get('id')]
     # 从redis里取 g_cookie_str
@@ -424,7 +425,7 @@ async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
     print('start main----------')
     insert_data = []
     # search_name_key = g_search_key
-    g_cookies = load_cookies(g_cookie_str)
+    # g_cookies = load_cookies(g_cookie_str)
     search_key_fakeid = get_search_key_fakeid(redis_cli,
                                               official_accounts_list)
     async with aiohttp.ClientSession() as session:
@@ -530,9 +531,11 @@ def handle_duplicate_key(db, insert_data):
 
 
 def my_clock(db_cli, redis_cli):
-    global g_cookie_str
+    global g_cookie_str, g_cookies
     g_cookie_str = redis_cli.get(COOKEIS_KEY)
-    app_log.info('start: {0} {1}'.format(datetime.now(), g_cookie_str))
+    g_cookies = load_cookies(g_cookie_str)
+    
+    app_log.info('my_clock: {0} {1} {2}'.format(datetime.now(), g_cookies.get('_clsk'), g_cookie_str))
     # with flask_app.app_context():
     #     res = Task.query.filter(Task.status==1).all()
     #     task_arr = [i.to_json() for i in res]
@@ -544,9 +547,10 @@ def my_clock(db_cli, redis_cli):
 
 def start_now(db_cli, redis_cli):
     # app_log.info(datetime.now())
-    global g_cookie_str
+    global g_cookie_str, g_cookies
     g_cookie_str = redis_cli.get(COOKEIS_KEY)
-    app_log.info('start: {0} {1}'.format(datetime.now(), g_cookie_str))
+    g_cookies = load_cookies(g_cookie_str)
+    app_log.info('start: {0} {1} {2}'.format(datetime.now(), g_cookies.get('_clsk'), g_cookie_str))
     filters = [Task.execute_status == 0]
     asyncio.run(main(db_cli, redis_cli, filters, update=True))
     # asyncio.run()
