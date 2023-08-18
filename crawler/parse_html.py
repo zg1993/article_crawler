@@ -223,6 +223,14 @@ def parse_carbon_market_sz(response, marketSegment, **kwargs):
         content_arr = response['data']['content']
         content_arr = list(filter(lambda i: i['title'].endswith('SZEA'), content_arr))
         data, last_data = content_arr[:2]
+        # 处理官网数据显示有误问题
+        if data['dailyClosingPrice'] == '0.00' and data['dealPrice'] != '0.00':
+                data['dailyClosingPrice'] = data['dealPrice']
+        if data['dailyClosingPrice'] != '0.00' and data['dealPrice'] == '0.00':
+            data['dealPrice'] =  data['dailyClosingPrice']
+        if last_data['dailyClosingPrice'] == '0.00' and last_data['dealPrice'] != '0.00':
+                last_data['dailyClosingPrice'] = last_data['dealPrice']
+        # end
         riseAndFall = round(float(data['dailyClosingPrice']) - float(last_data['dailyClosingPrice']), 2)
         chg = (riseAndFall / float(last_data['dailyClosingPrice'])) * 100
         element = {
