@@ -221,7 +221,8 @@ def parse_carbon_market_sz(response, marketSegment, **kwargs):
     try:
         res = []
         content_arr = response['data']['content']
-        data, last_data = content_arr
+        content_arr = list(filter(lambda i: i['title'].endswith('SZEA'), content_arr))
+        data, last_data = content_arr[:2]
         riseAndFall = round(float(data['dailyClosingPrice']) - float(last_data['dailyClosingPrice']), 2)
         chg = (riseAndFall / float(last_data['dailyClosingPrice'])) * 100
         element = {
