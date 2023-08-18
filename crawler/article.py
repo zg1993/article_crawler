@@ -480,7 +480,8 @@ async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
                 "announceTitle": i.get('title'),
                 "announceType": "3",
                 "announceSource": "无",
-                "interfaceType": "python"
+                "interfaceType": "python",
+                "status": 1
             }
             common_requests(url, announce_data)
             # 发布
