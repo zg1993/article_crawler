@@ -37,14 +37,14 @@ async def main(*args, **kwargs):
     }
     # url_qg = 'https://carbonmarket.cn/ets/cets/' # 全国
     urls = {
-        # CarbonMarket.QUANGUO :'https://carbonmarket.cn/ets/cets/', # 全国
-        # CarbonMarket.GUANGZHOU:
-        # 'http://ets.cnemission.com/carbon/portalIndex/markethistory',  # 广州'https://www.cnemission.com/article/hqxx/' 17:00之前就有数据
-        # CarbonMarket.HUBEI:
-        # 'http://www.hbets.cn/list/13.html',
+        CarbonMarket.QUANGUO :'https://carbonmarket.cn/ets/cets/', # 全国
+        CarbonMarket.GUANGZHOU:
+        'http://ets.cnemission.com/carbon/portalIndex/markethistory',  # 广州'https://www.cnemission.com/article/hqxx/' 17:00之前就有数据
+        CarbonMarket.HUBEI:
+        'http://www.hbets.cn/list/13.html',
         CarbonMarket.SHENZHEN:
         'https://new.szets.com/api/v1/cerx/deal-data/page',
-        # CarbonMarket.BEIJING: 'https://www.bjets.com.cn/article/jyxx/',
+        CarbonMarket.BEIJING: 'https://www.bjets.com.cn/article/jyxx/',
     }
     async with aiohttp.ClientSession(headers=headers) as session:
         result = []
