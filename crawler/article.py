@@ -413,7 +413,7 @@ async def main(db=None, redis_cli=None, filters=[], update=False):
 async def task_unit(now_str, task, db=None, redis_cli=None, **kwargs):
     # test
     global g_token, g_headers, g_cookies, g_search_key, g_cookie_str
-    app_log.info('task_unit: {0} {1}'.format(g_cookies.get('_clsk'), g_cookie_str))
+    # app_log.info('task_unit: {0} {1}'.format(g_cookies.get('_clsk'), g_cookie_str))
     g_headers['cookie'] = g_cookie_str
     insert_data = []
     filters = [Task.id == task.get('id')]
@@ -536,7 +536,7 @@ def my_clock(db_cli, redis_cli):
     g_cookie_str = redis_cli.get(COOKEIS_KEY)
     g_cookies = load_cookies(g_cookie_str)
     
-    app_log.info('my_clock: {0} {1} {2}'.format(datetime.now(), g_cookies.get('_clsk'), g_cookie_str))
+    # app_log.info('my_clock: {0} {1} {2}'.format(datetime.now(), g_cookies.get('_clsk'), g_cookie_str))
     # with flask_app.app_context():
     #     res = Task.query.filter(Task.status==1).all()
     #     task_arr = [i.to_json() for i in res]
@@ -551,7 +551,7 @@ def start_now(db_cli, redis_cli):
     global g_cookie_str, g_cookies
     g_cookie_str = redis_cli.get(COOKEIS_KEY)
     g_cookies = load_cookies(g_cookie_str)
-    app_log.info('start: {0} {1} {2}'.format(datetime.now(), g_cookies.get('_clsk'), g_cookie_str))
+    # app_log.info('start: {0} {1} {2}'.format(datetime.now(), g_cookies.get('_clsk'), g_cookie_str))
     filters = [Task.execute_status == 0]
     asyncio.run(main(db_cli, redis_cli, filters, update=True))
     # asyncio.run()
@@ -562,26 +562,6 @@ def test():
     res = requests.get(
         'http://192.168.110.240:3000/crawler/func/check_cookies')
     app_log.info(res.text)
-
-
-async def main1(db_cli, redis_cli):
-    global g_cookie_str
-    g_cookie_str = redis_cli.get(COOKEIS_KEY)
-    app_log.info('start: {0} {1}'.format(datetime.now(), g_cookie_str))
-    g_cookies = load_cookies(g_cookie_str)
-    app_log.info(g_cookies)
-    async with aiohttp.ClientSession() as session:
-        g_token = get_token1(g_cookies)
-        if not g_token:
-            app_log.info('cookies expired')
-            # update = kwargs.get('update')
-            # if update:
-            return
-        app_log.info('success')
-
-
-def my_clock1(db_cli, redis_cli):
-    asyncio.run(main1(db_cli, redis_cli))
 
 
 def common_requests(url, data):
@@ -630,9 +610,9 @@ if __name__ == '__main__':
                       args=[db_cli, redis_cli])
     scheduler.add_job(start_now,
                       'interval',
-                      minutes=5,
+                      minutes=7,
                       args=[db_cli, redis_cli])
-    scheduler.add_job(carbon_market, 'cron', hour=23, minute=0, args=[redis_cli])
+    scheduler.add_job(carbon_market, 'cron', hour=9, minute=33, args=[redis_cli])
     # scheduler.add_job(carbon_market, 'interval', minutes=1, args=[redis_cli])
     # scheduler.add_job(test, 'interval', minutes=30)
     if len(sys.argv) == 2:
