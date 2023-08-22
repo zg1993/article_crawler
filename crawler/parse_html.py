@@ -250,25 +250,98 @@ def parse_carbon_market_sz(response, marketSegment, **kwargs):
     except Exception as e:
         app_log.info(e)
 
+# 取BEA
 def parse_carbon_market_bj(html_text, marketSegment, **kwargs):
     try:
         res = []
         soup = BeautifulSoup(html_text, 'lxml')
         trs = soup.find('table').find_all('tr')
-        today = [td.text.strip() for td in trs[1].find_all('td')]
-        yesterday = [td.text.strip() for td in trs[2].find_all('td')]
-        print(today)
-        print(yesterday)
+        today_str = trs[1].find_all('td')[0].text.strip()        
+        trs_data = [[td.text.strip() for td in tr.find_all('td')] for tr in trs[1:]]
+        yesterday_str = next(filter(lambda arr:arr[0] < today_str, trs_data), 0)[0]
+        print(f'today-date: {today_str}')
+        print(f'yesterday-date: {yesterday_str}')
+        today = [today_str, 0, 0, 0]
+        yesterday = [yesterday_str, 0, 0, 0]
+        for tr_data in trs_data:
+            tr_data[1] = float(tr_data[1])
+            tr_data[2] = float(tr_data[2])
+            index = tr_data[3].find('(')
+            index = index if index != -1 else len(tr_data[3])
+            tr_data[3] = float(tr_data[3][:index].replace(',', ''))
+            if tr_data[0] == today_str:
+                today[1] = today[1] + tr_data[1]
+                today[3] = today[3] + tr_data[3]
+            if tr_data[0] == yesterday_str:
+                yesterday[1] = yesterday[1] + tr_data[1]
+                yesterday[3] = yesterday[3] + tr_data[3]
+        today[2] = round(today[3] / today[1],2)
+        yesterday[2] = round(yesterday[3] / yesterday[1],2)
+        print(f'today: {today}')
+        print(f'yesterday: {yesterday}')
+
+        # today = [td.text.strip() for td in trs[1].find_all('td')]
+        # yesterday = [td.text.strip() for td in trs[2].find_all('td')]
         nowDate, turnover, average_price, transactionAmount = today
-        last_average_price = float(yesterday[2])
-        turnover = float(turnover)
-        average_price = float(average_price)
-        transactionAmount = float(transactionAmount.replace(',', '')[:-6])
-        print(last_average_price)
-        print(nowDate)
-        print(turnover)
-        print(average_price)
-        print(transactionAmount)
+        last_average_price = yesterday[2]
+        # turnover = float(turnover)
+        # average_price = float(average_price)
+        # transactionAmount = float(transactionAmount.replace(',', '')[:-6])
+        closePrice = openPrice = hightPrice = lowPrice = average_price
+        riseAndFall = round(average_price - last_average_price, 2)
+        chg = (riseAndFall / last_average_price) * 100
+        element = {
+            'nowDate': f'{nowDate} 00:00:00',
+            'openPrice': openPrice,
+            'closePrice': closePrice,
+            'hightPrice': hightPrice,
+            'lowPrice': lowPrice,
+            'chg': round(chg, 2),
+            'turnover': turnover,
+            'transactionAmount': transactionAmount,
+            'riseAndFall': riseAndFall,
+            "marketSegment": marketSegment
+        }
+        return element
+    except Exception as e:
+        app_log.info(e)
+
+# 求平均值的（暂时不用）
+def parse_carbon_market_bj_sum(html_text, marketSegment, **kwargs):
+    try:
+        res = []
+        soup = BeautifulSoup(html_text, 'lxml')
+        trs = soup.find('table').find_all('tr')
+        today_str = trs[1].find_all('td')[0].text.strip()        
+        trs_data = [[td.text.strip() for td in tr.find_all('td')] for tr in trs[1:]]
+        yesterday_str = next(filter(lambda arr:arr[0] < today_str, trs_data), 0)[0]
+        print(f'today-date: {today_str}')
+        print(f'yesterday-date: {yesterday_str}')
+        today = [today_str, 0, 0, 0]
+        yesterday = [yesterday_str, 0, 0, 0]
+        for tr_data in trs_data:
+            tr_data[1] = float(tr_data[1])
+            tr_data[2] = float(tr_data[2])
+            index = tr_data[3].find('(')
+            tr_data[3] = float(tr_data[3][:index].replace(',', ''))
+            if tr_data[0] == today_str:
+                today[1] = today[1] + tr_data[1]
+                today[3] = today[3] + tr_data[3]
+            if tr_data[0] == yesterday_str:
+                yesterday[1] = yesterday[1] + tr_data[1]
+                yesterday[3] = yesterday[3] + tr_data[3]
+        today[2] = round(today[3] / today[1],2)
+        yesterday[2] = round(yesterday[3] / yesterday[1],2)
+        print(f'today: {today}')
+        print(f'yesterday: {yesterday}')
+
+        # today = [td.text.strip() for td in trs[1].find_all('td')]
+        # yesterday = [td.text.strip() for td in trs[2].find_all('td')]
+        nowDate, turnover, average_price, transactionAmount = today
+        last_average_price = yesterday[2]
+        # turnover = float(turnover)
+        # average_price = float(average_price)
+        # transactionAmount = float(transactionAmount.replace(',', '')[:-6])
         closePrice = openPrice = hightPrice = lowPrice = average_price
         riseAndFall = round(average_price - last_average_price, 2)
         chg = (riseAndFall / last_average_price) * 100

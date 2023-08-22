@@ -612,7 +612,7 @@ if __name__ == '__main__':
                       'interval',
                       minutes=7,
                       args=[db_cli, redis_cli])
-    scheduler.add_job(carbon_market, 'cron', hour=9, minute=33, args=[redis_cli])
+    scheduler.add_job(carbon_market, 'cron', hour=22, minute=33, args=[redis_cli])
     # scheduler.add_job(carbon_market, 'interval', minutes=1, args=[redis_cli])
     # scheduler.add_job(test, 'interval', minutes=30)
     if len(sys.argv) == 2:

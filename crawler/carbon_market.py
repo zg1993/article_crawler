@@ -44,7 +44,7 @@ async def main(*args, **kwargs):
         'http://www.hbets.cn/list/13.html',
         CarbonMarket.SHENZHEN:
         'https://new.szets.com/api/v1/cerx/deal-data/page',
-        CarbonMarket.BEIJING: 'https://www.bjets.com.cn/article/jyxx/',
+        # CarbonMarket.BEIJING: 'https://www.bjets.com.cn/article/jyxx/',
     }
     async with aiohttp.ClientSession(headers=headers) as session:
         result = []
